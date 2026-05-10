@@ -1,0 +1,59 @@
+# JARVIS OS — reference configuration
+# All values override defaults in daemon/src/jarvis/config.py
+# Environment variables take precedence: JARVIS_<KEY>=value
+# Anthropic API key: store in ~/.config/jarvis/anthropic_key (mode 600)
+
+daemon:
+  host:      "127.0.0.1"
+  port:      8787           # also open in networking.firewall.allowedTCPPorts
+  log_level: "INFO"         # DEBUG | INFO | WARNING | ERROR
+
+llm:
+  # ── Local (Ollama) — fully offline, zero cost ────────────────────────────
+  ollama_url:        "http://127.0.0.1:11434"
+  ollama_model:      "llama3.3:70b"    # heavy: code, analysis, complex reasoning
+  ollama_fast_model: "qwen2.5:7b"     # light: system queries, quick lookups
+
+  # ── Cloud (Anthropic Claude) — better reasoning, requires API key ────────
+  claude_model: "claude-sonnet-4-6"   # set JARVIS_ANTHROPIC_API_KEY to enable
+
+voice:
+  # whisper.cpp binary (NixOS path after nixos-rebuild switch)
+  whisper_binary: "/run/current-system/sw/bin/whisper-cpp"
+  whisper_model:  "base.en"           # tiny | base | small | medium | large-v3
+
+  # Piper neural TTS
+  piper_binary:    "/run/current-system/sw/bin/piper"
+  piper_voice:     "en_US-ryan-high"  # github.com/rhasspy/piper/releases
+  piper_model_dir: "~/.local/share/piper"
+
+  wake_word:       "jarvis"           # openWakeWord model name
+  voice_threshold: 0.5                # detection confidence (0.0–1.0)
+  sample_rate:     16000              # Hz — must match whisper expectation
+
+memory:
+  memory_dir: "~/.local/share/jarvis/memory"   # SQLite interactions + prefs
+  chroma_dir: "~/.local/share/jarvis/chroma"   # ChromaDB semantic index
+
+security:
+  # systemctl ops are restricted to services with these name prefixes
+  allowed_service_prefixes:
+    - "jarvis"
+    - "ollama"
+    - "pipewire"
+    - "NetworkManager"
+    - "bluetooth"
+
+  # JARVIS can read files under these roots only
+  safe_read_roots:
+    - "~"
+    - "/etc/nixos"
+    - "/var/log"
+    - "/proc"
+
+  # JARVIS can write files under these roots only
+  safe_write_roots:
+    - "~/.config/jarvis"
+    - "/etc/nixos"
+
+  nixos_config_dir: "/etc/nixos"

@@ -27,6 +27,11 @@ class JarvisConfig(BaseSettings):
     anthropic_api_key: str = ""
     claude_model: str      = "claude-sonnet-4-6"
 
+    # ── Cloud LLM (OpenRouter — fast, many models) ────────────────────────────
+    openrouter_api_key: str  = ""
+    openrouter_model: str    = "qwen/qwen-2.5-coder-32b-instruct"
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+
     # ── Memory ────────────────────────────────────────────────────────────────
     memory_dir: Path = Field(default_factory=lambda: Path.home() / ".local/share/jarvis/memory")
     chroma_dir: Path = Field(default_factory=lambda: Path.home() / ".local/share/jarvis/chroma")

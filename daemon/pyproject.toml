@@ -23,11 +23,12 @@ dependencies = [
     "sounddevice>=0.5",
     "numpy>=2.1",
     "websockets>=13.0",
+    "python-multipart>=0.0.9",
     "openai-whisper>=20240930",  # fallback; prefer whisper.cpp binary
 ]
 
 [project.scripts]
-jarvis = "jarvis.cli:app"
+jarvis = "jarvis.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/jarvis"]

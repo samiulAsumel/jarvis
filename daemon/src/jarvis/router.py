@@ -9,6 +9,7 @@ from enum import Enum
 from dataclasses import dataclass, field
 
 import anthropic
+import httpx
 import ollama
 
 from .config import JarvisConfig
@@ -27,18 +28,24 @@ class Message:
     content: str
 
 
-# Keywords that force local (fast, private, no API cost)
+# Force LOCAL — real-time system queries (no latency, no cost, private)
 _LOCAL_PATTERNS = frozenset({
     "disk", "memory", "cpu", "process", "pid", "journal", "log",
-    "uptime", "service", "systemctl", "status", "df ", "free ",
-    "ps ", "top", "kill", "network", "ip ", "port",
+    "uptime", "service", "systemctl", "df ", "free ", "ps ", "top",
+    "kill", "network", "ip ", "port", "ram", "swap",
 })
 
-# Keywords that push to cloud (complex reasoning)
+# Force CLOUD — anything creative, generative, or technical
 _CLOUD_PATTERNS = frozenset({
-    "write code", "explain", "analyze", "debug", "implement",
+    "write", "create", "build", "generate", "make",
+    "explain", "analyze", "analyse", "debug", "implement",
     "architecture", "refactor", "design", "compare", "research",
-    "what is", "how does", "why does", "best practice",
+    "what is", "how does", "how do", "why does", "why is",
+    "best practice", "example", "script", "code", "function",
+    "terraform", "ansible", "docker", "kubernetes", "aws", "azure", "gcp",
+    "nginx", "apache", "systemd", "bash", "python", "javascript",
+    "api", "database", "deploy", "pipeline", "ci/cd", "workflow",
+    "help", "show me", "give me", "how to", "what should",
 })
 
 SYSTEM_PROMPT = """\
@@ -75,8 +82,11 @@ class LLMRouter:
             self._anth = anthropic.AsyncAnthropic(api_key=self._cfg.anthropic_api_key)
         return self._anth
 
+    def _has_cloud(self) -> bool:
+        return bool(self._cfg.openrouter_api_key or self._cfg.anthropic_api_key)
+
     def decide(self, query: str) -> Backend:
-        if not self._cfg.anthropic_api_key:
+        if not self._has_cloud():
             return Backend.LOCAL
 
         q = query.lower()
@@ -89,7 +99,8 @@ class LLMRouter:
         if len(query) > 300 or any(p in q for p in _CLOUD_PATTERNS):
             return Backend.CLOUD
 
-        return Backend.LOCAL  # default: local (private + fast)
+        # if OpenRouter is available, default to cloud (fast); else local
+        return Backend.CLOUD if self._cfg.openrouter_api_key else Backend.LOCAL
 
     async def stream(
         self,
@@ -107,9 +118,58 @@ class LLMRouter:
         )
 
         if backend == Backend.CLOUD:
-            async for chunk in self._claude_stream(messages, system):
-                yield chunk
+            # prefer OpenRouter (faster + cheaper) over direct Anthropic
+            if self._cfg.openrouter_api_key:
+                async for chunk in self._openrouter_stream(messages, system):
+                    yield chunk
+            else:
+                async for chunk in self._claude_stream(messages, system):
+                    yield chunk
         else:
+            async for chunk in self._ollama_stream(messages, system):
+                yield chunk
+
+    async def _openrouter_stream(self, messages: list[Message], system: str) -> AsyncIterator[str]:
+        or_messages = [{"role": "system", "content": system}]
+        or_messages += [{"role": m.role, "content": m.content} for m in messages]
+        headers = {
+            "Authorization": f"Bearer {self._cfg.openrouter_api_key}",
+            "HTTP-Referer": "http://localhost:8787",
+            "X-Title": "JARVIS",
+        }
+        payload = {
+            "model":    self._cfg.openrouter_model,
+            "messages": or_messages,
+            "stream":   True,
+        }
+        try:
+            async with httpx.AsyncClient(timeout=120) as client:
+                async with client.stream(
+                    "POST",
+                    f"{self._cfg.openrouter_base_url}/chat/completions",
+                    headers=headers,
+                    json=payload,
+                ) as resp:
+                    resp.raise_for_status()
+                    import json as _json
+                    async for line in resp.aiter_lines():
+                        if not line.startswith("data: "):
+                            continue
+                        data = line[6:].strip()
+                        if data == "[DONE]" or not data:
+                            continue
+                        try:
+                            chunk = _json.loads(data)
+                            choices = chunk.get("choices", [])
+                            if not choices:
+                                continue
+                            delta = choices[0].get("delta", {}).get("content", "")
+                            if delta:
+                                yield delta
+                        except (_json.JSONDecodeError, KeyError, IndexError):
+                            continue
+        except Exception as e:
+            log.warning("OpenRouter error (%s), falling back to local", e)
             async for chunk in self._ollama_stream(messages, system):
                 yield chunk
 
@@ -159,11 +219,12 @@ class LLMRouter:
             yield f"\n[JARVIS ERROR — Ollama unreachable: {e}]"
 
     async def health(self) -> dict[str, bool]:
-        local_ok = False
-        cloud_ok  = bool(self._cfg.anthropic_api_key)
+        local_ok      = False
+        cloud_ok      = bool(self._cfg.anthropic_api_key)
+        openrouter_ok = bool(self._cfg.openrouter_api_key)
         try:
             await asyncio.wait_for(self._olla.list(), timeout=2.0)
             local_ok = True
         except Exception:
             pass
-        return {"local": local_ok, "cloud": cloud_ok}
+        return {"local": local_ok, "cloud": cloud_ok, "openrouter": openrouter_ok}
