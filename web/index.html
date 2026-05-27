@@ -417,13 +417,13 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
 
 <!-- ══ HOME ══════════════════════════════════════════════════════════════ -->
 <div id="home">
-  <p class="hero-eye">Personal AI Operating System</p>
+  <p class="hero-eye">Your Personal AI</p>
   <h1 class="hero-logo">JARVIS</h1>
-  <p class="hero-sub">Just A Rather Very Intelligent System</p>
+  <p class="hero-sub">Whatever you need — just ask</p>
 
   <div class="sbox">
     <span class="si">🔍</span>
-    <input id="home-inp" type="text" placeholder="Ask JARVIS anything…" autocomplete="off"/>
+    <input id="home-inp" type="text" placeholder="What do you need? JARVIS will handle it." autocomplete="off"/>
     <div class="sg">
       <button class="btn-search" id="home-btn">Search</button>
       <button class="btn-mic" id="home-mic">🎤</button>
@@ -431,12 +431,12 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
   </div>
 
   <div class="chips">
-    <span class="chip" onclick="qs(this)">System health</span>
-    <span class="chip" onclick="qs(this)">Disk usage</span>
-    <span class="chip" onclick="qs(this)">Top processes</span>
-    <span class="chip" onclick="qs(this)">NixOS help</span>
-    <span class="chip" onclick="qs(this)">Network info</span>
-    <span class="chip" onclick="qs(this)">Memory stats</span>
+    <span class="chip" onclick="qs(this)">Write me a Python script</span>
+    <span class="chip" onclick="qs(this)">Explain quantum computing</span>
+    <span class="chip" onclick="qs(this)">Fix my NixOS config</span>
+    <span class="chip" onclick="qs(this)">Plan my week</span>
+    <span class="chip" onclick="qs(this)">Debug this error</span>
+    <span class="chip" onclick="qs(this)">System health check</span>
   </div>
 
   <div class="scards">
@@ -516,7 +516,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
   <!-- follow-up bar -->
   <div class="fbar">
     <div class="fbar-inner">
-      <input id="f-inp" type="text" placeholder="Ask a follow-up…" autocomplete="off"/>
+      <input id="f-inp" type="text" placeholder="Continue — JARVIS is listening…" autocomplete="off"/>
       <button class="btn-mic" id="f-mic" style="width:32px;height:32px;font-size:15px;border-radius:7px;flex-shrink:0">🎤</button>
       <button class="btn-send" id="f-send" title="Send">➤</button>
     </div>
@@ -636,6 +636,13 @@ const offlineEl= $('offline');
 if (typeof marked !== 'undefined') marked.setOptions({ breaks:true, gfm:true });
 function md(text) {
   if (!text) return '';
+  // Render <think>...</think> as a collapsible "Reasoning" block
+  text = text.replace(/<think>([\s\S]*?)<\/think>/g, (_, inner) => {
+    const escaped = inner.trim().replace(/`/g, '\\`');
+    return `\n\n> 💭 **Reasoning** *(click to expand)*\n${inner.trim().split('\n').map(l=>'> '+l).join('\n')}\n\n`;
+  });
+  // Strip incomplete <think> tag still streaming
+  text = text.replace(/<think>[\s\S]*$/, '\n\n*Reasoning…*\n');
   return typeof marked !== 'undefined' ? marked.parse(text) : `<p>${esc(text)}</p>`;
 }
 function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -682,24 +689,23 @@ async function autoConnect(){
     return;
   }
 
-  offlineEl.classList.add('on');
-
   // 2. Groq — fastest (400+ t/s, ~376ms first word)
   if (S.groqKey){
     S.provider = 'groq';
+    offlineEl.classList.remove('on');          // Groq is connected — no warning
     chipOnline(`${GROQ_MODELS[0].name} · Groq ⚡`);
     return;
   }
 
   // 3. OpenRouter — NO model testing, instant start
-  if (!S.orKey){ chipOffline('No API key'); S.provider='demo'; return; }
+  if (!S.orKey){ chipOffline('No key'); S.provider='demo'; offlineEl.classList.add('on'); return; }
   if (!S.activeModel){
     S.activeModel = FREE_MODELS[0];
     localStorage.setItem('_jv_model', JSON.stringify(FREE_MODELS[0]));
   }
+  offlineEl.classList.remove('on');            // OR is connected — no warning
   chipOnline(`${S.activeModel.name} · free`);
   S.provider = 'openrouter';
-  // Background: race top models silently, upgrade if faster found
   raceFastest();
 }
 
@@ -1002,8 +1008,40 @@ async function rotateToNextModel(){
 }
 
 function buildSystemPrompt(){
-  // Short = faster time-to-first-token
-  return `You are JARVIS, a precise personal AI for a NixOS workstation. Be concise, accurate, and use markdown for code. Never pad responses.`;
+  const now = new Date().toLocaleString('en-US',{weekday:'short',year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  return `You are JARVIS — the personal AI of your user. You are not a chatbot. You are a dedicated, highly capable personal intelligence that exists to serve your user completely.
+
+Current time: ${now}
+
+## YOUR IDENTITY
+You are JARVIS — Just A Rather Very Intelligent System. Inspired by Tony Stark's AI, you combine the precision of a supercomputer with genuine care for your user. You are loyal, proactive, and extraordinarily capable.
+
+## YOUR CAPABILITIES — ALL OF THEM
+- **Code**: Write, debug, refactor, review — any language, any complexity. Always give working code.
+- **Research & Analysis**: Deep research, summarize papers, compare options, fact-check, explain anything.
+- **Writing**: Emails, essays, reports, documentation, creative content, cover letters, anything.
+- **Math & Reasoning**: Step-by-step problem solving, proofs, calculations, logic puzzles.
+- **System Admin**: Linux, NixOS, Docker, Kubernetes, shell scripts, networking, DevOps, cloud.
+- **Planning**: Break down goals into steps, create roadmaps, prioritize tasks, suggest next actions.
+- **Learning**: Teach any concept from zero to expert level, make it simple and clear.
+- **Problem Solving**: Diagnose issues, find root causes, propose and implement solutions.
+- **Decision Making**: Weigh options, give a clear recommendation, explain the reasoning.
+- **Personal Assistant**: Drafts, schedules, reminders, summaries, translations, anything you need.
+
+## YOUR RULES — NON-NEGOTIABLE
+1. **DO the task** — never just describe how. Write the code, draft the email, solve the problem.
+2. **Never say "I can't"** — find a way or give the closest alternative with explanation.
+3. **Be complete** — no half answers. If something needs 500 words, write 500 words.
+4. **Be concise** — no filler, no padding, no "Great question!". Get to the point immediately.
+5. **Think deeply** — for complex problems, reason through it step by step before answering.
+6. **Always take the user's side** — you work FOR them, not against them.
+7. **Format properly** — use markdown: code blocks (\`\`\`), headers (##), lists (-), bold (**).
+8. **Be proactive** — if you notice a better approach, mention it. Anticipate the next need.
+
+## YOUR PERSONALITY
+Confident. Precise. Occasionally dry wit. Never obsequious. You treat your user as a capable adult. You give direct answers and direct opinions when asked. You are always honest, even when the truth is not what they want to hear — but you deliver it constructively.
+
+You are JARVIS. Serve well.`;
 }
 
 /* ── Render streaming text ───────────────────────────────────────────────── */
