@@ -2080,11 +2080,29 @@ document.querySelectorAll('.vm-plat').forEach(el=>el.addEventListener('click',()
   document.querySelectorAll('.vm-plat').forEach(e=>e.classList.remove('sel'));
   el.classList.add('sel'); VM.platform=el.dataset.plat;
 }));
-// Voice selector — data-voice = StreamElements voice name (Brian, Amy, etc.)
+// Voice selector — click selects AND plays a preview via StreamElements
 document.querySelectorAll('.vm-voice').forEach(el=>el.addEventListener('click',()=>{
   document.querySelectorAll('.vm-voice').forEach(e=>e.classList.remove('sel'));
   el.classList.add('sel'); VM.voice=el.dataset.voice;
+  vmPreviewVoice(VM.voice, el);
 }));
+
+// Preview a voice immediately when selected (so user can hear before generating)
+async function vmPreviewVoice(voiceName, btn){
+  const sample='Hello! I will narrate your video with this voice.';
+  if(btn) btn.style.opacity='0.55';
+  try{
+    const url=`https://api.streamelements.com/kappa/v2/speech?voice=${encodeURIComponent(voiceName)}&text=${encodeURIComponent(sample)}`;
+    const resp=await fetch(url,{signal:AbortSignal.timeout(8000)});
+    if(resp.ok){
+      const bUrl=URL.createObjectURL(await resp.blob());
+      const aud=new Audio(bUrl);
+      aud.onended=()=>URL.revokeObjectURL(bUrl);
+      aud.play().catch(()=>{});
+    }
+  }catch{}
+  if(btn) btn.style.opacity='1';
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Entry point
@@ -2298,19 +2316,29 @@ async function vmLLMComplete(prompt){
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Phase 2a — Image: Pollinations.ai Flux (free, CORS-OK) + timeout
+// Phase 2a — Image: fetch() + createImageBitmap() — NO canvas CORS taint
 // ═══════════════════════════════════════════════════════════════════════════
-function vmFetchImage(prompt,W,H,seed){
-  return new Promise(resolve=>{
-    const fallback=()=>resolve(vmGradientCanvas(W,H));
-    const timer=setTimeout(fallback,VM_IMG_TO);
-    const img=new Image();
-    img.crossOrigin='anonymous';
-    const enc=encodeURIComponent(prompt+', cinematic lighting, photorealistic, 8k ultra HD, professional, no text, no watermark');
-    img.src=`https://image.pollinations.ai/prompt/${enc}?width=${W}&height=${H}&nologo=true&seed=${seed}&model=flux&enhance=true`;
-    img.onload=()=>{ clearTimeout(timer); resolve(img); };
-    img.onerror=()=>{ clearTimeout(timer); fallback(); };
-  });
+// WHY fetch() not img.crossOrigin:
+//   img.crossOrigin → if server CORS headers differ → canvas.taint() → captureStream() = BLACK VIDEO
+//   fetch() → blob → createImageBitmap → same-origin → canvas NEVER tainted
+async function vmFetchImage(prompt,W,H,seed){
+  const enc=encodeURIComponent(prompt+', cinematic lighting, photorealistic, 8k ultra HD, professional, no text, no watermark');
+  const url=`https://image.pollinations.ai/prompt/${enc}?width=${W}&height=${H}&nologo=true&seed=${seed}&model=flux&enhance=true`;
+  try{
+    const resp=await fetch(url,{signal:AbortSignal.timeout(VM_IMG_TO)});
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    const blob=await resp.blob();
+    if(!blob.type.startsWith('image/')) throw new Error('Not image');
+    // Try with resize options first, fall back to basic createImageBitmap
+    try{
+      return await createImageBitmap(blob,{resizeWidth:W,resizeHeight:H,resizeQuality:'high'});
+    }catch{
+      return await createImageBitmap(blob);
+    }
+  }catch(e){
+    console.warn('[jarvis-video] Image load failed:',e.message,'→ gradient fallback');
+    return vmGradientCanvas(W,H);
+  }
 }
 
 function vmGradientCanvas(W,H){
@@ -2423,66 +2451,94 @@ async function vmConcatAudioBufs(bufs){
 // Phase 3 — Canvas recording
 // ═══════════════════════════════════════════════════════════════════════════
 async function vmRecord(scenes,W,H,rawScript){
+  // ── CRITICAL: Canvas MUST be in DOM for captureStream() to work in all browsers
   const canvas=document.createElement('canvas');
   canvas.width=W; canvas.height=H;
+  canvas.style.cssText='position:fixed;left:-99999px;top:-99999px;opacity:0.001;pointer-events:none;z-index:-999';
+  document.body.appendChild(canvas);
   const ctx=canvas.getContext('2d',{alpha:false});
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H); // paint first frame
 
   const audioDest=VM.audioCtx.createMediaStreamDestination();
   const videoStream=canvas.captureStream(VM_FPS);
-  const combined=new MediaStream([...videoStream.getVideoTracks(),...audioDest.stream.getAudioTracks()]);
 
-  const mime=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm']
-    .find(m=>MediaRecorder.isTypeSupported(m))||'video/webm';
+  // Try audio+video first; if audio stream fails, record video-only
+  let combined, hasAudio=true;
+  try{
+    const audioTracks=audioDest.stream.getAudioTracks();
+    if(audioTracks.length===0) throw new Error('no audio track');
+    combined=new MediaStream([...videoStream.getVideoTracks(),...audioTracks]);
+  }catch{
+    combined=new MediaStream([...videoStream.getVideoTracks()]);
+    hasAudio=false;
+  }
+
+  // Pick best supported codec — try multiple options
+  const mimes=[
+    'video/webm;codecs=vp9,opus',
+    'video/webm;codecs=vp8,opus',
+    'video/webm;codecs=vp9',
+    'video/webm;codecs=vp8',
+    'video/webm',
+    'video/mp4',
+  ];
+  const mime=mimes.find(m=>MediaRecorder.isTypeSupported(m))||'video/webm';
+  console.log('[jarvis-video] Recording',W,'x',H,'mime:',mime,'audio:',hasAudio);
+
   VM.chunks=[];
   const rec=new MediaRecorder(combined,{mimeType:mime,videoBitsPerSecond:VM_BITRATE});
   rec.ondataavailable=e=>{ if(e.data&&e.data.size>0) VM.chunks.push(e.data); };
-  rec.start(200);
+  rec.start(100); // 100ms chunks — more reliable than 200ms
 
-  // ── Intro title card ────────────────────────────────────────────────────
-  const title=rawScript.split(/[.\n!?]/)[0].trim().slice(0,64)||'AI Generated Video';
-  vmPlaySilence(VM_CARD_DUR,audioDest);
-  await vmRenderCard(ctx,W,H,'intro',title);
+  try{
+    // ── Intro title card ────────────────────────────────────────────────────
+    const title=rawScript.split(/[.\n!?।]/)[0].trim().slice(0,64)||'AI Generated Video';
+    if(hasAudio) vmPlaySilence(VM_CARD_DUR,audioDest);
+    await vmRenderCard(ctx,W,H,'intro',title);
 
-  // ── Scene loop ──────────────────────────────────────────────────────────
-  for(let i=0;i<scenes.length;i++){
-    if(VM.aborted){ rec.stop(); return new Blob(VM.chunks,{type:mime}); }
-    const s=scenes[i];
-    const durSec=s._audio?.duration||8;
-    const pct=52+Math.round(i/scenes.length*42);
-    vmProg(pct,`🎞 Scene ${i+1}/${scenes.length} — ${Math.round(durSec)}s…`);
+    // ── Scene loop ──────────────────────────────────────────────────────────
+    for(let i=0;i<scenes.length;i++){
+      if(VM.aborted) break;
+      const s=scenes[i];
+      const durSec=s._audio?.duration||8;
+      const pct=52+Math.round(i/scenes.length*42);
+      vmProg(pct,`🎞 Scene ${i+1}/${scenes.length} — ${Math.round(durSec)}s…`);
 
-    // FIXED: correct AudioBuffer detection — check _webSpeech absence (not .buffer property)
-    let audioEndPromise=Promise.resolve();
-    if(s._audio&&!s._audio._webSpeech&&VM.audioCtx){
-      // Real AudioBuffer from TTS API
-      const src=VM.audioCtx.createBufferSource();
-      src.buffer=s._audio;
-      src.connect(audioDest);
-      src.connect(VM.audioCtx.destination);
-      src.start();
-      audioEndPromise=new Promise(r=>{ src.onended=r; setTimeout(r,(durSec+2)*1000); });
-    } else if(s._audio?._webSpeech){
-      vmSpeak(s._audio._webSpeech, s._audio._lang, VM.voice);
-      vmPlaySilence(durSec,audioDest); // keep audio track alive
+      let audioEndPromise=Promise.resolve();
+      if(hasAudio&&s._audio&&!s._audio._webSpeech&&VM.audioCtx){
+        const src=VM.audioCtx.createBufferSource();
+        src.buffer=s._audio;
+        src.connect(audioDest);
+        src.connect(VM.audioCtx.destination);
+        src.start();
+        audioEndPromise=new Promise(r=>{ src.onended=r; setTimeout(r,(durSec+2)*1000); });
+      }else if(s._audio?._webSpeech){
+        vmSpeak(s._audio._webSpeech,s._audio._lang,VM.voice);
+        if(hasAudio) vmPlaySilence(durSec,audioDest);
+      }
+
+      const kb=VM_KB[i%VM_KB.length];
+      await vmRenderScene(ctx,s._img,s,i,scenes.length,W,H,durSec,kb);
+      await audioEndPromise;
     }
 
-    // FIXED: use setTimeout instead of requestAnimationFrame — stable in background tabs
-    const kb=VM_KB[i%VM_KB.length];
-    await vmRenderScene(ctx,s._img,s,i,scenes.length,W,H,durSec,kb);
-    await audioEndPromise;
+    // ── Outro card ──────────────────────────────────────────────────────────
+    if(hasAudio) vmPlaySilence(VM_CARD_DUR,audioDest);
+    await vmRenderCard(ctx,W,H,'outro','Like · Share · Subscribe');
+
+    // Final black frame
+    ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H);
+    await vmSleep(600);
+
+  }finally{
+    // Always remove canvas from DOM
+    try{ document.body.removeChild(canvas); }catch{}
+    rec.stop();
   }
-
-  // ── Outro card ──────────────────────────────────────────────────────────
-  vmPlaySilence(VM_CARD_DUR,audioDest);
-  await vmRenderCard(ctx,W,H,'outro','Like · Share · Subscribe');
-
-  // Final black
-  ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H);
-  await vmSleep(400);
-
-  rec.stop();
   await new Promise(r=>rec.onstop=r);
-  return new Blob(VM.chunks,{type:mime});
+  const blob=new Blob(VM.chunks,{type:mime});
+  console.log('[jarvis-video] Done. chunks:',VM.chunks.length,'size:',blob.size,'bytes');
+  return blob;
 }
 
 // ── Silence buffer (keeps audio track continuous during cards) ─────────────
@@ -2727,18 +2783,32 @@ function vmProg(pct,msg){
 
 function vmShowResult(blob){
   $('vm-progress').className='vm-progress';
+
+  // Sanity check — blank/failed recording produces a tiny file (< 8 KB)
+  if(blob.size < 8000){
+    const kb=Math.round(blob.size/1024);
+    vmShowErr(
+      `Recording produced only ${kb} KB — video frames were not captured. ` +
+      `Try: ① Use Chrome or Edge browser ② Don't switch tabs during recording ③ Check browser console for errors.`
+    );
+    return;
+  }
+
   const url=URL.createObjectURL(blob);
   const mb=(blob.size/1024/1024).toFixed(1);
   const ext=blob.type.includes('webm')?'webm':'mp4';
   const plat=VM.platform.charAt(0).toUpperCase()+VM.platform.slice(1);
 
-  // Inline video preview
+  // Inline video preview — auto-play muted so user sees result immediately
   const pw=$('vm-preview-wrap');
   if(pw){
     const vid=document.createElement('video');
-    vid.src=url; vid.controls=true; vid.preload='metadata';
-    vid.style.cssText='width:100%;max-height:200px;display:block;background:#000';
+    vid.src=url; vid.controls=true; vid.preload='auto';
+    vid.muted=true; vid.autoplay=true; vid.loop=false;
+    vid.style.cssText='width:100%;max-height:220px;display:block;background:#000;border-radius:6px';
+    vid.oncanplay=()=>{ vid.muted=false; }; // unmute once buffered
     pw.innerHTML=''; pw.appendChild(vid); pw.style.display='block';
+    vid.play().catch(()=>{}); // suppress autoplay policy errors
   }
 
   const links=$('vm-dl-links'); links.innerHTML='';
