@@ -1,0 +1,1617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS — Personal AI</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <style>
+    /* ── Base & Variables ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg0:       #06080f;
+      --bg1:       #0d1117;
+      --bg2:       #161b22;
+      --bg3:       #1f2937;
+      --glass:     rgba(13,17,23,0.85);
+      --glass2:    rgba(31,41,55,0.6);
+      --border:    rgba(0,212,255,0.12);
+      --border2:   rgba(255,255,255,0.06);
+      --cyan:      #00d4ff;
+      --cyan2:     #00a8cc;
+      --purple:    #8b5cf6;
+      --blue:      #3b82f6;
+      --green:     #10b981;
+      --yellow:    #f59e0b;
+      --red:       #ef4444;
+      --text1:     #e2e8f0;
+      --text2:     #94a3b8;
+      --text3:     #64748b;
+      --glow:      0 0 20px rgba(0,212,255,0.25);
+      --glow-sm:   0 0 8px rgba(0,212,255,0.15);
+      --radius:    12px;
+      --radius-sm: 8px;
+      --radius-lg: 20px;
+      --t:         0.2s ease;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg0);
+      color: var(--text1);
+      min-height: 100vh;
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+    ::selection { background: rgba(0,212,255,0.25); color: var(--text1); }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg1); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--cyan2); }
+
+    /* ── Animated background ──────────────────────────────────────────── */
+    .bg-grid {
+      position: fixed; inset: 0; z-index: 0;
+      background-image:
+        linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+    }
+    .bg-orb {
+      position: fixed; z-index: 0; border-radius: 50%;
+      filter: blur(120px); pointer-events: none; opacity: 0.35;
+      animation: orb-drift 20s ease-in-out infinite alternate;
+    }
+    .bg-orb.orb1 {
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(0,212,255,0.3) 0%, transparent 70%);
+      top: -200px; left: -150px;
+    }
+    .bg-orb.orb2 {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(139,92,246,0.25) 0%, transparent 70%);
+      bottom: -150px; right: -100px;
+      animation-delay: -10s;
+    }
+    @keyframes orb-drift {
+      from { transform: translate(0,0) scale(1); }
+      to   { transform: translate(40px,30px) scale(1.08); }
+    }
+
+    /* ── Nav ──────────────────────────────────────────────────────────── */
+    #navbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      height: 56px;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 24px;
+      background: rgba(6,8,15,0.9);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border2);
+      transition: var(--t);
+    }
+    .nav-brand {
+      display: flex; align-items: center; gap: 10px;
+      cursor: pointer; text-decoration: none;
+    }
+    .nav-logo {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, var(--cyan), var(--purple));
+      border-radius: 8px;
+      display: grid; place-items: center;
+      font-size: 16px; font-weight: 800;
+      color: #fff; letter-spacing: -1px;
+      box-shadow: var(--glow-sm);
+    }
+    .nav-title {
+      font-size: 15px; font-weight: 700;
+      background: linear-gradient(135deg, var(--cyan), var(--purple));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      letter-spacing: 2px;
+    }
+    .nav-search-wrap {
+      flex: 1; max-width: 600px; margin: 0 24px;
+      display: none;
+    }
+    .nav-search-wrap.visible { display: block; }
+    .nav-search-inner {
+      position: relative;
+      display: flex; align-items: center;
+    }
+    .nav-search-inner input {
+      width: 100%; height: 36px;
+      padding: 0 44px 0 38px;
+      background: var(--bg2); border: 1px solid var(--border2);
+      border-radius: 18px; color: var(--text1);
+      font-size: 14px; outline: none;
+      transition: var(--t);
+    }
+    .nav-search-inner input:focus {
+      border-color: var(--cyan); box-shadow: var(--glow-sm);
+    }
+    .nav-search-inner .icon-left {
+      position: absolute; left: 12px;
+      color: var(--text3); font-size: 14px; pointer-events: none;
+    }
+    .nav-search-inner .btn-mic-nav {
+      position: absolute; right: 10px;
+      background: none; border: none; cursor: pointer;
+      color: var(--text3); padding: 4px; border-radius: 4px;
+      transition: var(--t);
+    }
+    .nav-search-inner .btn-mic-nav:hover { color: var(--cyan); }
+    .nav-status {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .status-dot {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 11px; color: var(--text3); font-weight: 500;
+    }
+    .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--text3);
+    }
+    .dot.online  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .dot.offline { background: var(--red); }
+    .dot.partial { background: var(--yellow); }
+    .btn-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      display: grid; place-items: center;
+      background: var(--bg2); border: 1px solid var(--border2);
+      color: var(--text2); cursor: pointer; font-size: 15px;
+      transition: var(--t); text-decoration: none;
+    }
+    .btn-icon:hover { border-color: var(--cyan); color: var(--cyan); }
+
+    /* ── Main Layout ──────────────────────────────────────────────────── */
+    #app { position: relative; z-index: 1; min-height: 100vh; }
+
+    /* ── HOME screen ──────────────────────────────────────────────────── */
+    #home {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      min-height: 100vh; padding: 80px 24px 40px;
+      text-align: center;
+    }
+    #home.hidden { display: none; }
+    .hero-eyebrow {
+      font-size: 11px; font-weight: 700; letter-spacing: 4px;
+      color: var(--cyan); text-transform: uppercase;
+      margin-bottom: 20px; opacity: 0.8;
+    }
+    .hero-logo {
+      font-size: clamp(52px, 10vw, 88px);
+      font-weight: 900; letter-spacing: -2px; line-height: 1;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #fff 0%, var(--cyan) 40%, var(--purple) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 0 30px rgba(0,212,255,0.4));
+      animation: pulse-glow 4s ease-in-out infinite alternate;
+    }
+    @keyframes pulse-glow {
+      from { filter: drop-shadow(0 0 20px rgba(0,212,255,0.3)); }
+      to   { filter: drop-shadow(0 0 45px rgba(0,212,255,0.6)); }
+    }
+    .hero-sub {
+      font-size: 13px; color: var(--text3); letter-spacing: 3px;
+      text-transform: uppercase; margin-bottom: 48px; font-weight: 500;
+    }
+    /* ── Search box (home) ───── */
+    .search-box {
+      width: 100%; max-width: 680px;
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 6px 6px 6px 20px;
+      display: flex; align-items: center; gap: 8px;
+      box-shadow: var(--glow), 0 4px 40px rgba(0,0,0,0.4);
+      transition: box-shadow 0.3s ease, border-color 0.3s ease;
+      backdrop-filter: blur(20px);
+    }
+    .search-box:focus-within {
+      border-color: var(--cyan);
+      box-shadow: 0 0 40px rgba(0,212,255,0.35), 0 4px 40px rgba(0,0,0,0.4);
+    }
+    .search-box .search-icon {
+      font-size: 18px; color: var(--text3); flex-shrink: 0;
+    }
+    .search-box input {
+      flex: 1; background: none; border: none; outline: none;
+      font-size: 17px; color: var(--text1);
+      font-family: inherit;
+      caret-color: var(--cyan);
+    }
+    .search-box input::placeholder { color: var(--text3); }
+    .search-box .btn-group {
+      display: flex; gap: 6px; flex-shrink: 0;
+    }
+    .btn-search {
+      height: 44px; padding: 0 20px;
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      border: none; border-radius: var(--radius);
+      color: #fff; font-size: 14px; font-weight: 700;
+      cursor: pointer; transition: var(--t);
+      letter-spacing: 0.5px;
+    }
+    .btn-search:hover { opacity: 0.88; transform: translateY(-1px); }
+    .btn-mic {
+      width: 44px; height: 44px; border-radius: var(--radius);
+      background: var(--bg2); border: 1px solid var(--border2);
+      color: var(--text2); font-size: 18px;
+      cursor: pointer; transition: var(--t);
+      display: grid; place-items: center;
+    }
+    .btn-mic:hover  { border-color: var(--cyan); color: var(--cyan); }
+    .btn-mic.active { background: var(--red); border-color: var(--red); color: #fff; animation: mic-pulse 1s ease-in-out infinite; }
+    @keyframes mic-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); } 50% { box-shadow: 0 0 0 8px transparent; } }
+
+    /* quick chips */
+    .quick-chips {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      justify-content: center; margin-top: 24px; max-width: 680px;
+    }
+    .chip {
+      padding: 6px 14px;
+      background: var(--bg2); border: 1px solid var(--border2);
+      border-radius: 20px; font-size: 12px; color: var(--text2);
+      cursor: pointer; transition: var(--t); white-space: nowrap;
+    }
+    .chip:hover {
+      border-color: var(--cyan); color: var(--cyan);
+      background: rgba(0,212,255,0.07);
+    }
+
+    /* system cards on home */
+    .sys-cards {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px; width: 100%; max-width: 680px; margin-top: 40px;
+    }
+    .sys-card {
+      background: var(--glass2); border: 1px solid var(--border2);
+      border-radius: var(--radius); padding: 16px;
+      backdrop-filter: blur(12px);
+      transition: var(--t);
+    }
+    .sys-card:hover { border-color: var(--border); transform: translateY(-2px); }
+    .sys-card-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--text3); margin-bottom: 8px; }
+    .sys-card-val { font-size: 22px; font-weight: 700; color: var(--text1); line-height: 1; }
+    .sys-card-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
+    .sys-card-bar {
+      height: 3px; background: var(--bg3); border-radius: 2px; margin-top: 10px; overflow: hidden;
+    }
+    .sys-card-bar-fill {
+      height: 100%; border-radius: 2px;
+      background: linear-gradient(90deg, var(--cyan), var(--blue));
+      transition: width 0.8s ease;
+    }
+    .sys-card-bar-fill.warn { background: linear-gradient(90deg, var(--yellow), #f97316); }
+    .sys-card-bar-fill.crit { background: linear-gradient(90deg, var(--red), #dc2626); }
+
+    /* ── RESULTS screen ───────────────────────────────────────────────── */
+    #results {
+      display: none; padding-top: 72px; min-height: 100vh;
+    }
+    #results.visible {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      grid-template-rows: auto 1fr;
+      gap: 0;
+    }
+    @media (max-width: 900px) {
+      #results.visible { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+    }
+
+    /* main answer area */
+    .answer-area {
+      padding: 28px 32px 80px;
+      max-width: 780px;
+    }
+    .query-header {
+      margin-bottom: 28px;
+    }
+    .query-label {
+      font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--text3); margin-bottom: 8px;
+    }
+    .query-text {
+      font-size: 24px; font-weight: 700; color: var(--text1); line-height: 1.3;
+    }
+    .backend-tag {
+      display: inline-flex; align-items: center; gap: 5px;
+      margin-top: 10px;
+      padding: 3px 10px; border-radius: 12px;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+      border: 1px solid;
+    }
+    .backend-tag.cloud { color: var(--cyan); border-color: rgba(0,212,255,0.3); background: rgba(0,212,255,0.07); }
+    .backend-tag.local { color: var(--green); border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.07); }
+
+    /* AI Answer box */
+    .answer-card {
+      background: var(--glass2); border: 1px solid var(--border2);
+      border-radius: var(--radius); padding: 28px;
+      backdrop-filter: blur(12px);
+      position: relative; overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .answer-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      opacity: 0.5;
+    }
+    .answer-card-header {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 20px;
+    }
+    .jarvis-avatar {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--cyan), var(--purple));
+      display: grid; place-items: center; font-size: 16px;
+      flex-shrink: 0; box-shadow: var(--glow-sm);
+    }
+    .jarvis-name { font-size: 13px; font-weight: 700; color: var(--cyan); }
+    .jarvis-model { font-size: 11px; color: var(--text3); }
+    .streaming-indicator {
+      margin-left: auto; display: flex; align-items: center; gap: 6px;
+      font-size: 11px; color: var(--cyan); font-weight: 600;
+      opacity: 0; transition: var(--t);
+    }
+    .streaming-indicator.active { opacity: 1; }
+    .streaming-dot {
+      width: 6px; height: 6px; background: var(--cyan); border-radius: 50%;
+      animation: blink 1s ease-in-out infinite;
+    }
+    @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.2; } }
+
+    /* Markdown content */
+    #answer-content {
+      font-size: 15px; line-height: 1.8; color: var(--text1);
+      min-height: 40px;
+    }
+    #answer-content p { margin-bottom: 16px; }
+    #answer-content p:last-child { margin-bottom: 0; }
+    #answer-content h1,h2,h3,h4 { margin: 24px 0 12px; color: var(--text1); font-weight: 700; }
+    #answer-content h1 { font-size: 22px; }
+    #answer-content h2 { font-size: 18px; border-bottom: 1px solid var(--border2); padding-bottom: 8px; }
+    #answer-content h3 { font-size: 16px; }
+    #answer-content ul,ol { margin: 12px 0 12px 24px; }
+    #answer-content li { margin-bottom: 6px; }
+    #answer-content strong { color: var(--text1); font-weight: 700; }
+    #answer-content em { color: var(--text2); font-style: italic; }
+    #answer-content code:not(pre code) {
+      background: var(--bg2); border: 1px solid var(--border2);
+      border-radius: 5px; padding: 2px 7px;
+      font-family: 'Fira Code', 'JetBrains Mono', monospace;
+      font-size: 13px; color: var(--cyan);
+    }
+    #answer-content pre {
+      background: #0d1117; border: 1px solid var(--border2);
+      border-radius: var(--radius-sm); overflow: auto;
+      margin: 16px 0; position: relative;
+    }
+    #answer-content pre code {
+      font-family: 'Fira Code', 'JetBrains Mono', monospace;
+      font-size: 13px; display: block; padding: 20px;
+    }
+    .copy-btn {
+      position: absolute; top: 8px; right: 8px;
+      padding: 4px 10px; border-radius: 6px;
+      background: var(--bg3); border: 1px solid var(--border2);
+      color: var(--text3); font-size: 11px; cursor: pointer;
+      transition: var(--t);
+    }
+    .copy-btn:hover { color: var(--cyan); border-color: var(--cyan); }
+    #answer-content blockquote {
+      border-left: 3px solid var(--cyan); padding-left: 16px;
+      margin: 16px 0; color: var(--text2); font-style: italic;
+    }
+    #answer-content table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    #answer-content th {
+      background: var(--bg2); padding: 10px 14px;
+      border: 1px solid var(--border2); font-weight: 700;
+      text-align: left; color: var(--cyan); font-size: 12px;
+    }
+    #answer-content td {
+      padding: 8px 14px; border: 1px solid var(--border2);
+      font-size: 13px;
+    }
+    #answer-content tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+    #answer-content a { color: var(--cyan); text-decoration: none; }
+    #answer-content a:hover { text-decoration: underline; }
+    /* Typing cursor */
+    .cursor {
+      display: inline-block; width: 2px; height: 1em;
+      background: var(--cyan); vertical-align: text-bottom;
+      margin-left: 2px; animation: cursor-blink 0.8s step-end infinite;
+    }
+    @keyframes cursor-blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+
+    /* Actions bar */
+    .answer-actions {
+      display: flex; align-items: center; gap: 10px;
+      margin-top: 20px; padding-top: 16px;
+      border-top: 1px solid var(--border2);
+      flex-wrap: wrap;
+    }
+    .action-btn {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 14px; border-radius: 8px;
+      background: var(--bg2); border: 1px solid var(--border2);
+      color: var(--text2); font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: var(--t);
+    }
+    .action-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+    .action-btn.speak-btn { }
+    .elapsed-time {
+      margin-left: auto; font-size: 11px; color: var(--text3);
+    }
+
+    /* Follow-up suggestions */
+    .followup-section { margin-bottom: 24px; }
+    .followup-label {
+      font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--text3); margin-bottom: 12px;
+    }
+    .followup-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .followup-chip {
+      padding: 8px 16px; border-radius: var(--radius-sm);
+      background: var(--glass2); border: 1px solid var(--border2);
+      color: var(--text2); font-size: 13px; cursor: pointer;
+      transition: var(--t);
+    }
+    .followup-chip:hover {
+      border-color: var(--cyan); color: var(--cyan);
+      background: rgba(0,212,255,0.07);
+    }
+
+    /* History (conversation turns) */
+    .history-section { margin-top: 32px; }
+    .history-label {
+      font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--text3); margin-bottom: 16px;
+    }
+    .history-item {
+      margin-bottom: 16px; padding: 16px 20px;
+      background: var(--glass2); border: 1px solid var(--border2);
+      border-radius: var(--radius); opacity: 0.65;
+      transition: var(--t);
+    }
+    .history-item:hover { opacity: 0.85; }
+    .history-role {
+      font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+      font-weight: 700; margin-bottom: 6px;
+    }
+    .history-role.user { color: var(--blue); }
+    .history-role.assistant { color: var(--cyan); }
+    .history-text { font-size: 13px; color: var(--text2); line-height: 1.6; }
+
+    /* Follow-up input */
+    .followup-input-wrap {
+      position: fixed; bottom: 0; left: 0;
+      width: calc(100% - 320px);
+      padding: 16px 32px; background: rgba(6,8,15,0.95);
+      backdrop-filter: blur(20px);
+      border-top: 1px solid var(--border2);
+      z-index: 50;
+    }
+    @media (max-width: 900px) { .followup-input-wrap { width: 100%; } }
+    .followup-input-inner {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--bg2); border: 1px solid var(--border2);
+      border-radius: var(--radius); padding: 6px 6px 6px 16px;
+      transition: var(--t); max-width: 700px;
+    }
+    .followup-input-inner:focus-within {
+      border-color: var(--cyan); box-shadow: var(--glow-sm);
+    }
+    .followup-input-inner input {
+      flex: 1; background: none; border: none; outline: none;
+      font-size: 14px; color: var(--text1); font-family: inherit;
+      caret-color: var(--cyan);
+    }
+    .followup-input-inner input::placeholder { color: var(--text3); }
+    .btn-send {
+      width: 36px; height: 36px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      border: none; color: #fff; cursor: pointer; font-size: 16px;
+      display: grid; place-items: center; transition: var(--t);
+      flex-shrink: 0;
+    }
+    .btn-send:hover { opacity: 0.85; transform: scale(1.05); }
+    .btn-send:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    /* ── SIDEBAR ──────────────────────────────────────────────────────── */
+    .sidebar {
+      background: rgba(13,17,23,0.7);
+      border-left: 1px solid var(--border2);
+      padding: 28px 20px 80px;
+      overflow-y: auto;
+      position: sticky; top: 56px; height: calc(100vh - 56px);
+    }
+    .sidebar-section { margin-bottom: 32px; }
+    .sidebar-label {
+      font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--text3); margin-bottom: 14px; font-weight: 700;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .sidebar-label::after {
+      content: ''; flex: 1; height: 1px; background: var(--border2);
+    }
+
+    /* Metric rows */
+    .metric-row { margin-bottom: 14px; }
+    .metric-top {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 5px;
+    }
+    .metric-name { font-size: 12px; color: var(--text2); }
+    .metric-val { font-size: 12px; font-weight: 700; color: var(--text1); }
+    .metric-bar {
+      height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden;
+    }
+    .metric-bar-fill {
+      height: 100%; border-radius: 2px;
+      background: linear-gradient(90deg, var(--cyan), var(--blue));
+      transition: width 1s ease;
+    }
+    .metric-bar-fill.warn { background: linear-gradient(90deg, var(--yellow), #f97316); }
+    .metric-bar-fill.crit { background: linear-gradient(90deg, var(--red), #dc2626); }
+
+    /* Network rows */
+    .net-row {
+      display: flex; justify-content: space-between;
+      font-size: 12px; color: var(--text2); margin-bottom: 8px;
+      padding: 6px 10px; background: var(--bg2); border-radius: 6px;
+    }
+    .net-status { font-weight: 700; }
+    .net-status.up   { color: var(--green); }
+    .net-status.down { color: var(--red); }
+
+    /* Memory entries */
+    .mem-entry {
+      padding: 10px 12px; margin-bottom: 8px;
+      background: var(--bg2); border: 1px solid var(--border2);
+      border-radius: var(--radius-sm);
+    }
+    .mem-role {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1px; margin-bottom: 4px;
+    }
+    .mem-role.user { color: var(--blue); }
+    .mem-role.assistant { color: var(--cyan); }
+    .mem-text { font-size: 12px; color: var(--text2); line-height: 1.5; }
+
+    /* Process list */
+    .proc-row {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 11px; margin-bottom: 6px; color: var(--text2);
+    }
+    .proc-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text1); }
+    .proc-cpu { color: var(--cyan); font-weight: 600; width: 40px; text-align: right; }
+    .proc-mem { color: var(--text3); width: 40px; text-align: right; }
+
+    /* ── Loading / Error states ────────────────────────────────────────── */
+    .loading-shimmer {
+      background: linear-gradient(90deg, var(--bg2) 25%, var(--bg3) 50%, var(--bg2) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px; height: 14px;
+    }
+    @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+    /* Error banner */
+    .error-banner {
+      display: none; align-items: center; gap: 10px;
+      padding: 12px 16px; border-radius: var(--radius-sm); margin-bottom: 16px;
+      background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+      color: var(--red); font-size: 13px;
+    }
+    .error-banner.show { display: flex; }
+
+    /* Toast notifications */
+    #toast-container {
+      position: fixed; bottom: 80px; right: 24px; z-index: 200;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .toast {
+      padding: 10px 16px; border-radius: var(--radius-sm);
+      background: var(--bg2); border: 1px solid var(--border2);
+      color: var(--text1); font-size: 13px;
+      animation: toast-in 0.3s ease;
+      max-width: 280px;
+    }
+    @keyframes toast-in { from { opacity: 0; transform: translateX(20px); } }
+    .toast.success { border-color: rgba(16,185,129,0.4); color: var(--green); }
+    .toast.error { border-color: rgba(239,68,68,0.4); color: var(--red); }
+
+    /* ── New chat button ──────────────────────────────────────────────── */
+    .btn-new-chat {
+      padding: 8px 16px; border-radius: var(--radius-sm);
+      background: var(--bg2); border: 1px solid var(--border2);
+      color: var(--text2); font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: var(--t);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .btn-new-chat:hover { border-color: var(--cyan); color: var(--cyan); }
+
+    /* ── Misc ─────────────────────────────────────────────────────────── */
+    .fade-in { animation: fade-in 0.4s ease; }
+    @keyframes fade-in { from { opacity: 0; transform: translateY(8px); } }
+
+    /* Offline banner */
+    #offline-banner {
+      display: none; position: fixed; top: 56px; left: 0; right: 0; z-index: 90;
+      background: rgba(239,68,68,0.15); border-bottom: 1px solid rgba(239,68,68,0.3);
+      padding: 8px 24px; text-align: center;
+      font-size: 13px; color: var(--red);
+    }
+    #offline-banner.show { display: block; }
+  </style>
+</head>
+<body>
+
+<!-- Background effects -->
+<div class="bg-grid"></div>
+<div class="bg-orb orb1"></div>
+<div class="bg-orb orb2"></div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- Offline banner -->
+<div id="offline-banner">⚠ JARVIS daemon unreachable — running in demo mode</div>
+
+<!-- ── Navbar ──────────────────────────────────────────────────────────── -->
+<nav id="navbar">
+  <a class="nav-brand" href="#" onclick="goHome(); return false;">
+    <div class="nav-logo">J</div>
+    <span class="nav-title">JARVIS</span>
+  </a>
+
+  <div class="nav-search-wrap" id="nav-search-wrap">
+    <div class="nav-search-inner">
+      <span class="icon-left">🔍</span>
+      <input id="nav-search-input" type="text" placeholder="Ask JARVIS..." autocomplete="off" />
+      <button class="btn-mic-nav" id="nav-mic-btn" title="Voice input">🎤</button>
+    </div>
+  </div>
+
+  <div class="nav-status">
+    <div class="status-dot" id="local-status">
+      <div class="dot" id="dot-local"></div>
+      <span id="label-local">local</span>
+    </div>
+    <div class="status-dot" id="cloud-status">
+      <div class="dot" id="dot-cloud"></div>
+      <span id="label-cloud">cloud</span>
+    </div>
+    <button class="btn-new-chat" id="btn-new-chat" onclick="newChat()" style="display:none">
+      ✦ New chat
+    </button>
+    <div class="btn-icon" title="Memory" onclick="toggleMemoryPanel()">🧠</div>
+  </div>
+</nav>
+
+<!-- ── App ─────────────────────────────────────────────────────────────── -->
+<div id="app">
+
+  <!-- ══ HOME screen ══════════════════════════════════════════════════════ -->
+  <div id="home">
+    <p class="hero-eyebrow">Personal AI Operating System</p>
+    <h1 class="hero-logo">JARVIS</h1>
+    <p class="hero-sub">Just A Rather Very Intelligent System</p>
+
+    <div class="search-box" id="home-search-box">
+      <span class="search-icon">🔍</span>
+      <input id="home-input" type="text" placeholder="Ask JARVIS anything…" autocomplete="off" />
+      <div class="btn-group">
+        <button class="btn-search" id="home-search-btn">Search</button>
+        <button class="btn-mic" id="home-mic-btn" title="Voice input">🎤</button>
+      </div>
+    </div>
+
+    <div class="quick-chips" id="quick-chips">
+      <span class="chip" onclick="quickSearch(this)">System health</span>
+      <span class="chip" onclick="quickSearch(this)">Disk usage</span>
+      <span class="chip" onclick="quickSearch(this)">Top processes</span>
+      <span class="chip" onclick="quickSearch(this)">Memory stats</span>
+      <span class="chip" onclick="quickSearch(this)">Network info</span>
+      <span class="chip" onclick="quickSearch(this)">NixOS tips</span>
+    </div>
+
+    <div class="sys-cards" id="sys-cards">
+      <div class="sys-card">
+        <div class="sys-card-label">CPU</div>
+        <div class="sys-card-val" id="home-cpu">—</div>
+        <div class="sys-card-sub" id="home-cpu-sub">loading…</div>
+        <div class="sys-card-bar"><div class="sys-card-bar-fill" id="home-cpu-bar" style="width:0%"></div></div>
+      </div>
+      <div class="sys-card">
+        <div class="sys-card-label">RAM</div>
+        <div class="sys-card-val" id="home-ram">—</div>
+        <div class="sys-card-sub" id="home-ram-sub">loading…</div>
+        <div class="sys-card-bar"><div class="sys-card-bar-fill" id="home-ram-bar" style="width:0%"></div></div>
+      </div>
+      <div class="sys-card">
+        <div class="sys-card-label">Disk /</div>
+        <div class="sys-card-val" id="home-disk">—</div>
+        <div class="sys-card-sub" id="home-disk-sub">loading…</div>
+        <div class="sys-card-bar"><div class="sys-card-bar-fill" id="home-disk-bar" style="width:0%"></div></div>
+      </div>
+      <div class="sys-card">
+        <div class="sys-card-label">Uptime</div>
+        <div class="sys-card-val" id="home-uptime">—</div>
+        <div class="sys-card-sub" id="home-host">loading…</div>
+        <div class="sys-card-bar"><div class="sys-card-bar-fill" style="width:0%; background: linear-gradient(90deg,var(--purple),var(--blue))"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ RESULTS screen ═══════════════════════════════════════════════════ -->
+  <div id="results">
+
+    <!-- Answer column -->
+    <div class="answer-area">
+
+      <!-- Query header -->
+      <div class="query-header fade-in">
+        <div class="query-label">Your question</div>
+        <div class="query-text" id="result-query-text"></div>
+        <div class="backend-tag cloud" id="backend-badge">⚡ Claude · cloud</div>
+      </div>
+
+      <!-- Error banner -->
+      <div class="error-banner" id="error-banner">
+        ⚠ <span id="error-msg">Connection error</span>
+      </div>
+
+      <!-- JARVIS Answer -->
+      <div class="answer-card fade-in">
+        <div class="answer-card-header">
+          <div class="jarvis-avatar">🤖</div>
+          <div>
+            <div class="jarvis-name">JARVIS</div>
+            <div class="jarvis-model" id="model-label">Processing…</div>
+          </div>
+          <div class="streaming-indicator" id="streaming-indicator">
+            <div class="streaming-dot"></div>
+            Thinking…
+          </div>
+        </div>
+        <div id="answer-content"></div>
+        <div class="answer-actions">
+          <button class="action-btn" onclick="copyAnswer()">📋 Copy</button>
+          <button class="action-btn speak-btn" onclick="speakAnswer()">🔊 Speak</button>
+          <button class="action-btn" onclick="shareAnswer()">🔗 Share</button>
+          <span class="elapsed-time" id="elapsed-time"></span>
+        </div>
+      </div>
+
+      <!-- Follow-up suggestions -->
+      <div class="followup-section" id="followup-section" style="display:none">
+        <div class="followup-label">💡 Follow-up questions</div>
+        <div class="followup-chips" id="followup-chips"></div>
+      </div>
+
+      <!-- Conversation history -->
+      <div class="history-section" id="history-section" style="display:none">
+        <div class="history-label">Conversation</div>
+        <div id="history-list"></div>
+      </div>
+
+    </div><!-- /answer-area -->
+
+    <!-- ── Sidebar ─────────────────────────────────────────────────────── -->
+    <aside class="sidebar" id="sidebar">
+
+      <!-- System metrics -->
+      <div class="sidebar-section">
+        <div class="sidebar-label">System</div>
+        <div class="metric-row">
+          <div class="metric-top"><span class="metric-name">CPU</span><span class="metric-val" id="sb-cpu">—</span></div>
+          <div class="metric-bar"><div class="metric-bar-fill" id="sb-cpu-bar" style="width:0%"></div></div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-top"><span class="metric-name">RAM</span><span class="metric-val" id="sb-ram">—</span></div>
+          <div class="metric-bar"><div class="metric-bar-fill" id="sb-ram-bar" style="width:0%"></div></div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-top"><span class="metric-name">Disk /</span><span class="metric-val" id="sb-disk">—</span></div>
+          <div class="metric-bar"><div class="metric-bar-fill" id="sb-disk-bar" style="width:0%"></div></div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-top"><span class="metric-name">Swap</span><span class="metric-val" id="sb-swap">—</span></div>
+          <div class="metric-bar"><div class="metric-bar-fill" id="sb-swap-bar" style="width:0%"></div></div>
+        </div>
+        <div class="metric-row" style="margin-top:12px">
+          <div class="metric-top"><span class="metric-name">Load avg</span><span class="metric-val" id="sb-load">—</span></div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-top"><span class="metric-name">Uptime</span><span class="metric-val" id="sb-uptime">—</span></div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-top"><span class="metric-name">Host</span><span class="metric-val" id="sb-host">—</span></div>
+        </div>
+      </div>
+
+      <!-- Network -->
+      <div class="sidebar-section" id="net-section">
+        <div class="sidebar-label">Network</div>
+        <div id="net-list"></div>
+      </div>
+
+      <!-- Top processes -->
+      <div class="sidebar-section" id="proc-section">
+        <div class="sidebar-label">Processes</div>
+        <div id="proc-list"></div>
+      </div>
+
+      <!-- Recent memory -->
+      <div class="sidebar-section" id="memory-section">
+        <div class="sidebar-label">Memory</div>
+        <div id="memory-list"></div>
+      </div>
+
+    </aside>
+
+    <!-- Follow-up input (fixed bottom) -->
+    <div class="followup-input-wrap">
+      <div class="followup-input-inner">
+        <input id="followup-input" type="text"
+               placeholder="Ask a follow-up question…"
+               autocomplete="off" />
+        <button class="btn-mic" id="followup-mic-btn" title="Voice" style="width:36px;height:36px;border-radius:8px;flex-shrink:0">🎤</button>
+        <button class="btn-send" id="followup-send-btn" title="Send">➤</button>
+      </div>
+    </div>
+
+  </div><!-- /results -->
+
+</div><!-- /app -->
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- JAVASCRIPT                                                             -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<script>
+'use strict';
+
+/* ── Config ─────────────────────────────────────────────────────────────── */
+const DAEMON_URL = (()=>{
+  const u = new URL(window.location.href);
+  // If served by the daemon itself, use same host; else default
+  return u.hostname === 'localhost' || u.hostname === '127.0.0.1'
+    ? `${u.protocol}//${u.hostname}:8787`
+    : 'http://127.0.0.1:8787';
+})();
+const WS_URL = DAEMON_URL.replace('http','ws') + '/ws/chat';
+
+/* ── State ───────────────────────────────────────────────────────────────── */
+const S = {
+  mode: 'home',
+  streaming: false,
+  history: [],          // [{role,content}]
+  rawAnswer: '',
+  ws: null,
+  sysCtx: null,
+  startTime: 0,
+  daemonOnline: false,
+  speaking: false,
+};
+
+/* ── DOM refs ────────────────────────────────────────────────────────────── */
+const $ = id => document.getElementById(id);
+const home         = $('home');
+const results      = $('results');
+const homeInput    = $('home-input');
+const navSearchWrap= $('nav-search-wrap');
+const navInput     = $('nav-search-input');
+const answerEl     = $('answer-content');
+const streamInd    = $('streaming-indicator');
+const modelLabel   = $('model-label');
+const resultQuery  = $('result-query-text');
+const backendBadge = $('backend-badge');
+const errorBanner  = $('error-banner');
+const errorMsg     = $('error-msg');
+const elapsedEl    = $('elapsed-time');
+const followSec    = $('followup-section');
+const followChips  = $('followup-chips');
+const historySec   = $('history-section');
+const historyList  = $('history-list');
+const followInput  = $('followup-input');
+const followSend   = $('followup-send-btn');
+const btnNewChat   = $('btn-new-chat');
+const offlineBanner= $('offline-banner');
+
+/* ── Marked.js config ────────────────────────────────────────────────────── */
+if (typeof marked !== 'undefined') {
+  marked.setOptions({
+    breaks: true, gfm: true,
+    highlight: (code, lang) => {
+      if (typeof hljs !== 'undefined' && lang && hljs.getLanguage(lang)) {
+        return hljs.highlight(code, { language: lang }).value;
+      }
+      return typeof hljs !== 'undefined' ? hljs.highlightAuto(code).value : code;
+    },
+  });
+}
+
+/* ── Toast ───────────────────────────────────────────────────────────────── */
+function toast(msg, type='') {
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  $('toast-container').appendChild(t);
+  setTimeout(()=>t.remove(), 3000);
+}
+
+/* ── Render markdown ─────────────────────────────────────────────────────── */
+function renderMarkdown(text) {
+  if (typeof marked === 'undefined') return `<p>${escapeHtml(text)}</p>`;
+  const html = marked.parse(text);
+  return html;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* After setting innerHTML, add copy buttons to code blocks */
+function addCopyButtons(container) {
+  container.querySelectorAll('pre').forEach(pre => {
+    if (pre.querySelector('.copy-btn')) return;
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = 'Copy';
+    btn.onclick = () => {
+      navigator.clipboard.writeText(pre.querySelector('code')?.innerText || pre.innerText)
+        .then(()=>{ btn.textContent='Copied!'; setTimeout(()=>btn.textContent='Copy',1500); });
+    };
+    pre.style.position = 'relative';
+    pre.appendChild(btn);
+  });
+  if (typeof hljs !== 'undefined') {
+    container.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
+  }
+}
+
+/* ── Navigation ──────────────────────────────────────────────────────────── */
+function goHome() {
+  home.classList.remove('hidden');
+  results.classList.remove('visible');
+  navSearchWrap.classList.remove('visible');
+  btnNewChat.style.display = 'none';
+  S.mode = 'home';
+  homeInput.value = '';
+  homeInput.focus();
+}
+
+function goResults(query) {
+  home.classList.add('hidden');
+  results.classList.add('visible');
+  navSearchWrap.classList.add('visible');
+  btnNewChat.style.display = '';
+  navInput.value = query;
+  S.mode = 'results';
+}
+
+/* ── Search ──────────────────────────────────────────────────────────────── */
+function doSearch(query) {
+  query = query.trim();
+  if (!query) return;
+
+  goResults(query);
+  resultQuery.textContent = query;
+  answerEl.innerHTML = '';
+  errorBanner.classList.remove('show');
+  streamInd.classList.add('active');
+  followSec.style.display = 'none';
+  elapsedEl.textContent = '';
+  S.rawAnswer = '';
+  S.startTime = Date.now();
+  modelLabel.textContent = 'Thinking…';
+
+  // Add user turn to history display
+  if (S.history.length > 0) {
+    renderHistory();
+  }
+
+  streamAnswer(query);
+}
+
+/* ── WebSocket streaming ─────────────────────────────────────────────────── */
+function streamAnswer(query) {
+  S.streaming = true;
+  followSend.disabled = true;
+
+  // Close existing WS
+  if (S.ws) { try { S.ws.close(); } catch(_){} }
+
+  const ws = new WebSocket(WS_URL);
+  S.ws = ws;
+
+  let raw = '';
+  const msgPayload = { query, history: S.history };
+
+  ws.onopen = () => {
+    ws.send(JSON.stringify(msgPayload));
+    offlineBanner.classList.remove('show');
+    S.daemonOnline = true;
+  };
+
+  ws.onmessage = (ev) => {
+    const data = JSON.parse(ev.data);
+
+    if (data.type === 'chunk') {
+      raw += data.content;
+      // Render markdown progressively (with cursor)
+      const rendered = renderMarkdown(raw);
+      answerEl.innerHTML = rendered + '<span class="cursor"></span>';
+      addCopyButtons(answerEl);
+      // Auto-scroll
+      answerEl.scrollIntoView({ block: 'end', behavior: 'smooth' });
+      // Detect backend from content hints
+      updateBackendBadge(raw);
+    }
+
+    if (data.type === 'done') {
+      raw = data.content || raw;
+      S.rawAnswer = raw;
+
+      // Final render without cursor
+      answerEl.innerHTML = renderMarkdown(raw);
+      addCopyButtons(answerEl);
+
+      const elapsed = ((Date.now() - S.startTime)/1000).toFixed(1);
+      elapsedEl.textContent = `${elapsed}s`;
+      modelLabel.textContent = 'JARVIS — answered';
+      streamInd.classList.remove('active');
+      S.streaming = false;
+      followSend.disabled = false;
+
+      // Store in history
+      S.history.push({ role: 'user', content: query });
+      S.history.push({ role: 'assistant', content: raw });
+
+      // Generate follow-up chips
+      generateFollowups(query, raw);
+      renderHistory();
+
+      // Refresh sidebar memory
+      loadMemory();
+    }
+
+    if (data.type === 'error') {
+      showError(data.content || 'Unknown error');
+    }
+  };
+
+  ws.onerror = () => {
+    // Fall back to REST /api/chat
+    fetchChatREST(query);
+  };
+
+  ws.onclose = (ev) => {
+    if (S.streaming && ev.code !== 1000) {
+      if (!raw) fetchChatREST(query);
+    }
+    S.streaming = false;
+  };
+}
+
+/* ── REST fallback ───────────────────────────────────────────────────────── */
+async function fetchChatREST(query) {
+  streamInd.classList.add('active');
+  modelLabel.textContent = 'Connecting…';
+
+  try {
+    const res = await fetch(`${DAEMON_URL}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, history: S.history }),
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const raw = data.reply || '';
+    S.rawAnswer = raw;
+
+    answerEl.innerHTML = renderMarkdown(raw);
+    addCopyButtons(answerEl);
+
+    const elapsed = ((Date.now() - S.startTime)/1000).toFixed(1);
+    elapsedEl.textContent = `${elapsed}s`;
+    modelLabel.textContent = 'JARVIS — answered';
+    streamInd.classList.remove('active');
+    S.streaming = false;
+    followSend.disabled = false;
+    S.daemonOnline = true;
+    offlineBanner.classList.remove('show');
+
+    S.history.push({ role: 'user', content: query });
+    S.history.push({ role: 'assistant', content: raw });
+
+    updateBackendBadge(raw);
+    generateFollowups(query, raw);
+    renderHistory();
+    loadMemory();
+
+  } catch(e) {
+    showDemoMode(query);
+  }
+}
+
+/* ── Demo mode (daemon offline) ──────────────────────────────────────────── */
+function showDemoMode(query) {
+  offlineBanner.classList.add('show');
+  S.daemonOnline = false;
+  S.streaming = false;
+  followSend.disabled = false;
+  streamInd.classList.remove('active');
+  modelLabel.textContent = 'Demo mode';
+
+  updateDotStatus('dot-local', 'offline');
+  updateDotStatus('dot-cloud', 'offline');
+
+  const demoReply = `**Demo Mode** — JARVIS daemon is not running.
+
+To start JARVIS, run:
+\`\`\`bash
+cd ~/jarvis-os/daemon
+jarvis serve
+\`\`\`
+Or via systemd:
+\`\`\`bash
+systemctl start jarvis-daemon
+\`\`\`
+
+Your query was: *${escapeHtml(query)}*
+
+Once the daemon is running, JARVIS will connect automatically and provide AI-powered answers using local Ollama models or Claude via cloud.`;
+
+  S.rawAnswer = demoReply;
+  answerEl.innerHTML = renderMarkdown(demoReply);
+  addCopyButtons(answerEl);
+  elapsedEl.textContent = '—';
+}
+
+/* ── Backend badge update ────────────────────────────────────────────────── */
+function updateBackendBadge(text) {
+  // Heuristic based on length and content
+  const lower = text.toLowerCase();
+  const isLocal = text.length < 200 || lower.includes('cpu') || lower.includes('memory') || lower.includes('disk');
+  backendBadge.className = `backend-tag ${isLocal ? 'local' : 'cloud'}`;
+  backendBadge.textContent = isLocal ? '⚡ Ollama · local' : '☁ Claude · cloud';
+}
+
+/* ── Error display ───────────────────────────────────────────────────────── */
+function showError(msg) {
+  errorBanner.classList.add('show');
+  errorMsg.textContent = msg;
+  streamInd.classList.remove('active');
+  S.streaming = false;
+  followSend.disabled = false;
+  modelLabel.textContent = 'Error';
+}
+
+/* ── History render ──────────────────────────────────────────────────────── */
+function renderHistory() {
+  if (S.history.length < 2) { historySec.style.display='none'; return; }
+  historySec.style.display = 'block';
+  // Show all turns except the last pair (current Q/A)
+  const turns = S.history.slice(0, -2);
+  if (!turns.length) { historySec.style.display='none'; return; }
+
+  historyList.innerHTML = '';
+  turns.forEach(m => {
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    div.innerHTML = `<div class="history-role ${m.role}">${m.role}</div>
+                     <div class="history-text">${escapeHtml(m.content).slice(0,300)}${m.content.length>300?'…':''}</div>`;
+    historyList.appendChild(div);
+  });
+}
+
+/* ── Follow-up generation ────────────────────────────────────────────────── */
+const FOLLOWUP_TEMPLATES = {
+  cpu:     ['Show CPU per-core usage', 'Which process uses most CPU?', 'Check load average trend'],
+  memory:  ['Show swap usage details', 'Which process uses most RAM?', 'Clear memory caches'],
+  disk:    ['List largest files', 'Show inode usage', 'Clean up disk space'],
+  network: ['Check open ports', 'Show active connections', 'Test DNS resolution'],
+  service: ['Show service logs', 'Check failed services', 'Restart problematic service'],
+  nix:     ['Update NixOS flake', 'List installed packages', 'Show NixOS changelog'],
+  default: ['Explain in more detail', 'Show me an example', 'How to automate this?'],
+};
+
+function generateFollowups(query, answer) {
+  const q = (query + answer).toLowerCase();
+  let chips = [];
+
+  if (q.includes('cpu') || q.includes('process')) chips = FOLLOWUP_TEMPLATES.cpu;
+  else if (q.includes('memory') || q.includes('ram')) chips = FOLLOWUP_TEMPLATES.memory;
+  else if (q.includes('disk') || q.includes('storage')) chips = FOLLOWUP_TEMPLATES.disk;
+  else if (q.includes('network') || q.includes('ip') || q.includes('port')) chips = FOLLOWUP_TEMPLATES.network;
+  else if (q.includes('service') || q.includes('systemctl')) chips = FOLLOWUP_TEMPLATES.service;
+  else if (q.includes('nix') || q.includes('nixos')) chips = FOLLOWUP_TEMPLATES.nix;
+  else chips = FOLLOWUP_TEMPLATES.default;
+
+  followChips.innerHTML = '';
+  chips.forEach(c => {
+    const el = document.createElement('div');
+    el.className = 'followup-chip';
+    el.textContent = c;
+    el.onclick = () => {
+      followInput.value = c;
+      sendFollowup();
+    };
+    followChips.appendChild(el);
+  });
+  followSec.style.display = 'block';
+}
+
+/* ── Follow-up send ──────────────────────────────────────────────────────── */
+function sendFollowup() {
+  const q = followInput.value.trim();
+  if (!q || S.streaming) return;
+  followInput.value = '';
+
+  // Scroll up to show results
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  resultQuery.textContent = q;
+  navInput.value = q;
+  answerEl.innerHTML = '';
+  errorBanner.classList.remove('show');
+  streamInd.classList.add('active');
+  followSec.style.display = 'none';
+  elapsedEl.textContent = '';
+  S.rawAnswer = '';
+  S.startTime = Date.now();
+  modelLabel.textContent = 'Thinking…';
+
+  streamAnswer(q);
+}
+
+/* ── Quick search chips ──────────────────────────────────────────────────── */
+function quickSearch(el) {
+  homeInput.value = el.textContent;
+  doSearch(el.textContent);
+}
+
+/* ── New chat ────────────────────────────────────────────────────────────── */
+function newChat() {
+  S.history = [];
+  S.rawAnswer = '';
+  goHome();
+}
+
+/* ── Copy / Speak / Share ────────────────────────────────────────────────── */
+function copyAnswer() {
+  navigator.clipboard.writeText(S.rawAnswer)
+    .then(()=>toast('Answer copied!', 'success'))
+    .catch(()=>toast('Copy failed', 'error'));
+}
+
+async function speakAnswer() {
+  if (!S.rawAnswer) return;
+  // Try daemon TTS
+  try {
+    await fetch(`${DAEMON_URL}/api/voice/speak`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: S.rawAnswer.slice(0, 2000) }),
+    });
+    toast('Speaking via Piper…', 'success');
+    return;
+  } catch(_) {}
+  // Fallback to Web Speech API
+  if ('speechSynthesis' in window) {
+    const utt = new SpeechSynthesisUtterance(S.rawAnswer.slice(0,2000));
+    utt.rate = 1; utt.pitch = 1;
+    window.speechSynthesis.speak(utt);
+    toast('Speaking…');
+  } else {
+    toast('TTS unavailable', 'error');
+  }
+}
+
+function shareAnswer() {
+  const text = `Q: ${resultQuery.textContent}\n\nA: ${S.rawAnswer.slice(0,500)}`;
+  if (navigator.share) {
+    navigator.share({ title: 'JARVIS Answer', text });
+  } else {
+    navigator.clipboard.writeText(text).then(()=>toast('Copied to clipboard!'));
+  }
+}
+
+/* ── Voice input ─────────────────────────────────────────────────────────── */
+let recognition = null;
+let activeInputEl = null;
+let activeMicBtn = null;
+
+function setupVoice(inputEl, micBtn) {
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    micBtn.title = 'Speech recognition not supported';
+    return;
+  }
+  micBtn.onclick = () => toggleMic(inputEl, micBtn);
+}
+
+function toggleMic(inputEl, micBtn) {
+  if (recognition) {
+    recognition.stop(); recognition = null;
+    if (activeMicBtn) { activeMicBtn.classList.remove('active'); activeMicBtn.textContent = '🎤'; }
+    return;
+  }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.lang = 'en-US'; recognition.interimResults = true;
+  activeInputEl = inputEl; activeMicBtn = micBtn;
+  micBtn.classList.add('active'); micBtn.textContent = '🔴';
+
+  recognition.onresult = (e) => {
+    const transcript = Array.from(e.results).map(r=>r[0].transcript).join('');
+    inputEl.value = transcript;
+  };
+  recognition.onend = () => {
+    micBtn.classList.remove('active'); micBtn.textContent = '🎤';
+    recognition = null;
+    if (inputEl.value.trim()) {
+      if (S.mode === 'home') doSearch(inputEl.value);
+      else { sendFollowup(); }
+    }
+  };
+  recognition.onerror = ()=>{ micBtn.classList.remove('active'); micBtn.textContent = '🎤'; recognition=null; };
+  recognition.start();
+}
+
+/* ── System context polling ──────────────────────────────────────────────── */
+async function loadSystemContext() {
+  try {
+    const res = await fetch(`${DAEMON_URL}/api/system/context`, { signal: AbortSignal.timeout(3000) });
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    parseAndDisplayContext(data.context);
+    S.daemonOnline = true;
+  } catch(_) {
+    setContextUnavailable();
+    S.daemonOnline = false;
+  }
+}
+
+function parseAndDisplayContext(ctx) {
+  // Parse the formatted string from agent.get_context_string()
+  // Format: "Host: hostname | Uptime: Xh\nCPU: X%  Load: X\nRAM: X/XG (X%)\nDisk: X/XG (X%)"
+  const lines = ctx.split('\n');
+
+  let host='', uptime='', cpu='', load='', ram='', ramPct=0, disk='', diskPct=0;
+
+  lines.forEach(l => {
+    const m1 = l.match(/Host:\s*(.+?)\s*\|\s*Uptime:\s*([\d.]+)h/);
+    if (m1) { host=m1[1]; uptime=m1[2]+'h'; }
+
+    const m2 = l.match(/CPU:\s*([\d.]+)%\s+Load:\s*([\d.]+)/);
+    if (m2) { cpu=m2[1]+'%'; load=m2[2]; }
+
+    const m3 = l.match(/RAM:\s*([\d.]+)\/([\d.]+)G\s+\(([\d.]+)%\)/);
+    if (m3) { ram=m3[1]+'/'+m3[2]+'G'; ramPct=parseFloat(m3[3]); }
+
+    const m4 = l.match(/Disk:\s*([\d.]+)\/([\d.]+)G\s+\(([\d.]+)%\)/);
+    if (m4) { disk=m4[1]+'/'+m4[2]+'G'; diskPct=parseFloat(m4[3]); }
+  });
+
+  const cpuPct = parseFloat(cpu) || 0;
+
+  // Home screen cards
+  setCard('home-cpu', cpu||'—', load?`Load: ${load}`:'', cpuPct, 'home-cpu-bar', 'home-cpu-sub');
+  setCard('home-ram', ram||'—', `${ramPct.toFixed(0)}% used`, ramPct, 'home-ram-bar', 'home-ram-sub');
+  setCard('home-disk', disk||'—', `${diskPct.toFixed(0)}% used`, diskPct, 'home-disk-bar', 'home-disk-sub');
+  const uptimeEl = $('home-uptime'); if(uptimeEl) uptimeEl.textContent = uptime||'—';
+  const hostEl   = $('home-host');   if(hostEl)   hostEl.textContent   = host||'—';
+
+  // Sidebar
+  setText('sb-cpu',  cpu||'—'); setBar('sb-cpu-bar', cpuPct);
+  setText('sb-ram',  ram||'—'); setBar('sb-ram-bar', ramPct);
+  setText('sb-disk', disk||'—'); setBar('sb-disk-bar', diskPct);
+  setText('sb-load', load||'—');
+  setText('sb-uptime', uptime||'—');
+  setText('sb-host', host||'—');
+
+  S.sysCtx = { host, uptime, cpu, load, ram, ramPct, disk, diskPct };
+}
+
+function setCard(valId, val, sub, pct, barId, subId) {
+  const el = $(valId); if(el) el.textContent = val;
+  const s  = $(subId); if(s)  s.textContent  = sub;
+  setBar(barId, pct);
+}
+
+function setBar(id, pct) {
+  const el = $(id); if(!el) return;
+  el.style.width = Math.min(100,Math.max(0,pct)) + '%';
+  el.className = 'metric-bar-fill' + (pct > 90 ? ' crit' : pct > 75 ? ' warn' : '');
+}
+
+function setText(id, val) { const el=$(id); if(el) el.textContent=val; }
+
+function setContextUnavailable() {
+  ['home-cpu','home-ram','home-disk','home-uptime','home-host',
+   'sb-cpu','sb-ram','sb-disk','sb-swap','sb-load','sb-uptime','sb-host']
+    .forEach(id=>{ const e=$(id); if(e) e.textContent='—'; });
+}
+
+/* ── Health check ────────────────────────────────────────────────────────── */
+async function checkHealth() {
+  try {
+    const res = await fetch(`${DAEMON_URL}/health`, { signal: AbortSignal.timeout(2000) });
+    const data = await res.json();
+    updateDotStatus('dot-local',  data.llm?.local       ? 'online' : 'offline');
+    updateDotStatus('dot-cloud',  data.llm?.cloud || data.llm?.openrouter ? 'online' : 'partial');
+    offlineBanner.classList.remove('show');
+  } catch(_) {
+    updateDotStatus('dot-local',  'offline');
+    updateDotStatus('dot-cloud',  'offline');
+    offlineBanner.classList.add('show');
+  }
+}
+
+function updateDotStatus(dotId, status) {
+  const el = $(dotId); if(!el) return;
+  el.className = `dot ${status}`;
+}
+
+/* ── Agent calls ─────────────────────────────────────────────────────────── */
+async function loadNetworkInfo() {
+  try {
+    const res = await fetch(`${DAEMON_URL}/api/agent`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ op:'network_info', kwargs:{} }),
+      signal: AbortSignal.timeout(3000),
+    });
+    const data = await res.json();
+    if (!data.success) return;
+    const netList = $('net-list');
+    if (!netList) return;
+    netList.innerHTML = '';
+    data.output.split('\n').filter(Boolean).forEach(line => {
+      const up = line.includes('[UP]');
+      const [name] = line.split(' ');
+      const ip = line.match(/\d+\.\d+\.\d+\.\d+/)?.[0] || '';
+      const el = document.createElement('div');
+      el.className = 'net-row';
+      el.innerHTML = `<span>${name}</span><span class="net-status ${up?'up':'down'}">${up?'UP':'DOWN'}</span><span style="color:var(--text3);font-size:11px">${ip}</span>`;
+      netList.appendChild(el);
+    });
+  } catch(_) {}
+}
+
+async function loadProcessList() {
+  try {
+    const res = await fetch(`${DAEMON_URL}/api/agent`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ op:'process_list', kwargs:{n:5} }),
+      signal: AbortSignal.timeout(3000),
+    });
+    const data = await res.json();
+    if (!data.success) return;
+    const procList = $('proc-list');
+    if (!procList) return;
+    procList.innerHTML = '';
+    data.output.split('\n').slice(1,6).filter(Boolean).forEach(line => {
+      const parts = line.trim().split(/\s+/);
+      if (parts.length < 4) return;
+      const [pid, cpu, mem, ...nameParts] = parts;
+      const el = document.createElement('div');
+      el.className = 'proc-row';
+      el.innerHTML = `<span class="proc-name">${nameParts.join(' ')}</span><span class="proc-cpu">${cpu}%</span><span class="proc-mem">${mem}%</span>`;
+      procList.appendChild(el);
+    });
+  } catch(_) {}
+}
+
+/* ── Memory ──────────────────────────────────────────────────────────────── */
+async function loadMemory() {
+  try {
+    const res = await fetch(`${DAEMON_URL}/api/memory/recent?limit=5`, { signal: AbortSignal.timeout(2000) });
+    const data = await res.json();
+    const memList = $('memory-list');
+    if (!memList) return;
+    if (!data.entries?.length) { memList.innerHTML = '<div style="font-size:12px;color:var(--text3)">No memories yet</div>'; return; }
+    memList.innerHTML = '';
+    data.entries.forEach(e => {
+      const role = e.metadata?.role || 'system';
+      const div = document.createElement('div');
+      div.className = 'mem-entry';
+      div.innerHTML = `<div class="mem-role ${role}">${role}</div>
+                       <div class="mem-text">${escapeHtml(e.content).slice(0,120)}${e.content.length>120?'…':''}</div>`;
+      memList.appendChild(div);
+    });
+  } catch(_) {
+    const ml=$('memory-list'); if(ml) ml.innerHTML='<div style="font-size:12px;color:var(--text3)">Unavailable</div>';
+  }
+}
+
+/* ── Sidebar swap panel toggle ───────────────────────────────────────────── */
+async function loadSwap() {
+  try {
+    const res = await fetch(`${DAEMON_URL}/api/agent`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ op:'memory_info', kwargs:{} }),
+      signal: AbortSignal.timeout(3000),
+    });
+    const data = await res.json();
+    if (!data.success) return;
+    // Parse "Swap: X.XG / X.XG (X% used)"
+    const m = data.output.match(/Swap:\s+([\d.]+)G\s*\/\s*([\d.]+)G\s+\(([\d.]+)%/);
+    if (m) {
+      setText('sb-swap', `${m[1]}/${m[2]}G`);
+      setBar('sb-swap-bar', parseFloat(m[3]));
+    }
+  } catch(_) {}
+}
+
+function toggleMemoryPanel() {
+  const sec = $('memory-section');
+  if (!sec) return;
+  const vis = sec.style.display !== 'none';
+  sec.style.display = vis ? 'none' : '';
+  if (!vis) loadMemory();
+}
+
+/* ── Key handlers ────────────────────────────────────────────────────────── */
+homeInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') doSearch(homeInput.value);
+});
+
+navInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') doSearch(navInput.value);
+});
+
+followInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendFollowup();
+});
+
+followSend.addEventListener('click', sendFollowup);
+
+$('home-search-btn').addEventListener('click', () => doSearch(homeInput.value));
+
+/* ── Voice setup ──────────────────────────────────────────────────────────── */
+setupVoice(homeInput, $('home-mic-btn'));
+setupVoice(followInput, $('followup-mic-btn'));
+
+$('nav-mic-btn').onclick = () => {
+  if (S.mode === 'results') toggleMic(followInput, $('nav-mic-btn'));
+  else toggleMic(homeInput, $('nav-mic-btn'));
+};
+
+/* ── Refresh loop ────────────────────────────────────────────────────────── */
+async function refreshAll() {
+  await Promise.all([
+    loadSystemContext(),
+    checkHealth(),
+    loadNetworkInfo(),
+    loadProcessList(),
+    loadSwap(),
+  ]);
+}
+
+/* ── Boot ────────────────────────────────────────────────────────────────── */
+(async () => {
+  await refreshAll();
+  // Refresh every 15 seconds
+  setInterval(refreshAll, 15000);
+  // Focus home input
+  homeInput.focus();
+})();
+
+/* ── URL param: ?q=... for direct search ─────────────────────────────────── */
+(()=>{
+  const params = new URLSearchParams(window.location.search);
+  const q = params.get('q');
+  if (q) setTimeout(() => doSearch(q), 500);
+})();
+</script>
+</body>
+</html>

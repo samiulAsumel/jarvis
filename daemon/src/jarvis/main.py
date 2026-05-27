@@ -6,10 +6,13 @@ import asyncio
 import json
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .agent import Op, SystemAgent
@@ -42,10 +45,23 @@ app = FastAPI(title="JARVIS", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost", f"http://{cfg.host}"],
+    allow_origins=["*"],   # web UI may be opened from file:// or any local port
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ── Static web UI ──────────────────────────────────────────────────────────
+
+_WEB_DIR = Path(__file__).parents[3] / "web"  # jarvis-os/web/
+
+if _WEB_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(_WEB_DIR)), name="static")
+
+    @app.get("/", response_class=HTMLResponse)
+    async def web_ui():
+        index = _WEB_DIR / "index.html"
+        return FileResponse(str(index))
+
 
 
 # ── Request / Response models ─────────────────────────────────────────────────
