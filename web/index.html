@@ -786,11 +786,11 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     </div>
 
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);font-size:11px;color:var(--t3);line-height:1.7">
-      ⚡ <strong style="color:var(--t2)">100% Free</strong> —
-      Voice: Microsoft Edge TTS &nbsp;·&nbsp;
-      Images: Pollinations.ai (Flux) &nbsp;·&nbsp;
-      Compose: FFmpeg &nbsp;·&nbsp;
-      <span style="color:var(--yellow)">⚠ Requires JARVIS daemon running</span>
+      ⚡ <strong style="color:var(--t2)">100% Free · No daemon · No API keys</strong> —
+      Voice: StreamElements TTS &nbsp;·&nbsp;
+      Images: Pollinations.ai Flux &nbsp;·&nbsp;
+      Compose: Canvas + MediaRecorder (browser-native) &nbsp;·&nbsp;
+      Output: WebM (plays on all platforms, upload directly to YouTube/TikTok/Facebook)
     </div>
   </div>
 </div>
@@ -1922,139 +1922,475 @@ function newChat(){
 })();
 
 /* ══════════════════════════════════════════════════════════════════════════
-   VIDEO CREATOR
+   VIDEO CREATOR — 100% Browser-Only, No Daemon, No API Keys
+   Stack: JARVIS LLM (scenes) · Pollinations.ai Flux (images) ·
+          StreamElements TTS / Web Speech (voice) · Canvas + MediaRecorder (compose)
    ══════════════════════════════════════════════════════════════════════════ */
 (function(){
-  let _vmPlatform = 'youtube';
-  let _vmVoice    = 'en';
-  let _vmPollId   = null;
+'use strict';
 
-  /* ── Open / Close ─────────────────────────────────────────────────────── */
-  window.openVideoModal = function(){
-    if(S.provider !== 'daemon'){
-      toast('⚠ Video creation requires the JARVIS daemon. Start it with: python -m jarvis.main');
-      return;
+// ── State ──────────────────────────────────────────────────────────────────
+const VM={
+  platform:'youtube', voice:'en', aborted:false,
+  recording:false, chunks:[], audioCtx:null,
+};
+
+// ── Dimensions per platform ────────────────────────────────────────────────
+const VM_DIM={
+  youtube:[1280,720], shorts:[720,1280], tiktok:[720,1280],
+  reels:[720,1280],   facebook:[1080,1080],
+};
+
+// ── StreamElements voice map (free TTS API, returns MP3, CORS-enabled) ────
+const VM_VOICE_MAP={
+  'en':      {se:'Brian', lang:'en-US'},
+  'en-f':    {se:'Amy',   lang:'en-US'},
+  'bn':      {se:null,    lang:'bn-BD'},
+  'bn-m':    {se:null,    lang:'bn-BD'},
+  'banglish':{se:'Brian', lang:'en-US'},
+};
+
+// ── Ken Burns presets ──────────────────────────────────────────────────────
+const KB_PRESETS=[
+  {z0:1.00,z1:1.10,ox0:0,   oy0:0,   ox1:0.04, oy1:0.02},  // zoom in + drift right
+  {z0:1.10,z1:1.00,ox0:0.04,oy0:0.02,ox1:0,    oy1:0   },  // zoom out + drift left
+  {z0:1.00,z1:1.08,ox0:0.02,oy0:0.04,ox1:0,    oy1:0   },  // zoom in + drift up
+  {z0:1.05,z1:1.00,ox0:0,   oy0:0,   ox1:0.03, oy1:0.03},  // slow zoom out
+  {z0:1.00,z1:1.12,ox0:0.04,oy0:0,   ox1:0,    oy1:0.04},  // zoom in diagonal
+];
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Open / Close
+// ═══════════════════════════════════════════════════════════════════════════
+window.openVideoModal=function(){
+  vmReset();
+  $('video-modal').classList.add('on');
+};
+window.closeVideoModal=function(){
+  VM.aborted=true;
+  $('video-modal').classList.remove('on');
+};
+$('video-modal').addEventListener('click',e=>{
+  if(e.target===$('video-modal')) closeVideoModal();
+});
+
+// ── Selector wiring ────────────────────────────────────────────────────────
+document.querySelectorAll('.vm-plat').forEach(el=>el.addEventListener('click',()=>{
+  document.querySelectorAll('.vm-plat').forEach(e=>e.classList.remove('sel'));
+  el.classList.add('sel'); VM.platform=el.dataset.plat;
+}));
+document.querySelectorAll('.vm-voice').forEach(el=>el.addEventListener('click',()=>{
+  document.querySelectorAll('.vm-voice').forEach(e=>e.classList.remove('sel'));
+  el.classList.add('sel'); VM.voice=el.dataset.voice;
+}));
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Entry point
+// ═══════════════════════════════════════════════════════════════════════════
+window.startVideoCreation=async function(){
+  const script=($('vm-script').value||'').trim();
+  if(!script){toast('Please enter a script first');return;}
+  vmReset(); VM.aborted=false;
+  $('vm-progress').className='vm-progress on';
+  $('vm-create-btn').disabled=true;
+
+  try{
+    // ── Phase 1: scene breakdown via LLM ──────────────────────────────────
+    vmProg(4,'🧠 Breaking script into scenes…');
+    const scenes=await vmParseScenes(script);
+    if(VM.aborted) return;
+
+    // ── Phase 2: pre-fetch all images + audio in parallel ─────────────────
+    const [W,H]=VM_DIM[VM.platform]||[1280,720];
+    const voiceCfg=VM_VOICE_MAP[VM.voice]||VM_VOICE_MAP['en'];
+    VM.audioCtx=new AudioContext();
+
+    for(let i=0;i<scenes.length;i++){
+      if(VM.aborted) return;
+      const pct=8+Math.round(i/scenes.length*40);
+      vmProg(pct,`🖼 Scene ${i+1}/${scenes.length}: loading image…`);
+      scenes[i]._img=await vmFetchImage(scenes[i].visual_prompt,W,H,i*137+42);
+      vmProg(pct+2,`🎙 Scene ${i+1}/${scenes.length}: generating voice…`);
+      scenes[i]._audio=await vmFetchAudio(scenes[i].narration,voiceCfg);
     }
-    resetVideoModal();
-    $('video-modal').classList.add('on');
-  };
-  window.closeVideoModal = function(){
-    $('video-modal').classList.remove('on');
-    if(_vmPollId){ clearInterval(_vmPollId); _vmPollId=null; }
-  };
+    if(VM.aborted) return;
 
-  /* ── Platform & Voice selectors ───────────────────────────────────────── */
-  document.querySelectorAll('.vm-plat').forEach(el=>{
-    el.addEventListener('click',()=>{
-      document.querySelectorAll('.vm-plat').forEach(e=>e.classList.remove('sel'));
-      el.classList.add('sel');
-      _vmPlatform=el.dataset.plat;
-    });
-  });
-  document.querySelectorAll('.vm-voice').forEach(el=>{
-    el.addEventListener('click',()=>{
-      document.querySelectorAll('.vm-voice').forEach(e=>e.classList.remove('sel'));
-      el.classList.add('sel');
-      _vmVoice=el.dataset.voice;
-    });
-  });
+    // ── Phase 3: record canvas → WebM ─────────────────────────────────────
+    vmProg(50,'🎬 Recording video…');
+    const blob=await vmRecord(scenes,W,H,voiceCfg);
+    if(VM.aborted) return;
 
-  /* ── Start creation ───────────────────────────────────────────────────── */
-  window.startVideoCreation = async function(){
-    const script = ($('vm-script').value||'').trim();
-    if(!script){ toast('Please enter a script first'); return; }
+    // ── Phase 4: offer download ────────────────────────────────────────────
+    vmProg(100,'✅ Done!');
+    vmShowResult(blob);
 
-    // Reset UI
-    $('vm-err').className='vm-err';
-    $('vm-result').className='vm-result';
-    $('vm-progress').className='vm-progress on';
-    $('vm-prog-bar').style.width='0%';
-    $('vm-prog-msg').textContent='Submitting job…';
-    $('vm-create-btn').disabled=true;
+  }catch(err){
+    if(!VM.aborted) vmShowErr(err.message||String(err));
+  }finally{
+    $('vm-create-btn').disabled=false;
+    if(VM.audioCtx){try{await VM.audioCtx.close();}catch{} VM.audioCtx=null;}
+  }
+};
 
-    try{
-      const res = await fetch(`${DAEMON_URL}/api/video/create`,{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({script, platform:_vmPlatform, voice:_vmVoice}),
-      });
-      if(!res.ok){
-        const e=await res.json().catch(()=>({}));
-        throw new Error(e.detail||`HTTP ${res.status}`);
-      }
-      const {job_id} = await res.json();
-      _pollJob(job_id);
-    }catch(e){
-      _showVmErr(`Failed to start job: ${e.message}`);
-    }
-  };
+// ═══════════════════════════════════════════════════════════════════════════
+// Phase 1 — LLM scene breakdown
+// ═══════════════════════════════════════════════════════════════════════════
+const VM_SCENE_PROMPT=`You are a professional video director.
+Break this script into video scenes for a social media video.
 
-  /* ── Poll status ──────────────────────────────────────────────────────── */
-  function _pollJob(jobId){
-    if(_vmPollId) clearInterval(_vmPollId);
-    _vmPollId = setInterval(async()=>{
+Rules:
+- 5 to 10 scenes, each 8–20 seconds of spoken narration
+- Split at natural sentence/paragraph breaks
+- visual_prompt: vivid Flux image prompt (cinematic, photorealistic, NO text in image)
+- caption: 4–7 words max shown on screen
+
+Return ONLY valid JSON array, no markdown:
+[{"narration":"...","visual_prompt":"...","caption":"..."}]
+
+Script:
+`;
+
+async function vmParseScenes(script){
+  // Try to call JARVIS LLM (non-streaming)
+  const prompt=VM_SCENE_PROMPT+script;
+  let raw='';
+  try{ raw=await vmLLMComplete(prompt); }
+  catch(e){ log('[video] LLM failed, using naive split'); }
+
+  // Parse JSON
+  if(raw){
+    const m=raw.match(/\[[\s\S]*\]/);
+    if(m){
       try{
-        const res = await fetch(`${DAEMON_URL}/api/video/status/${jobId}`);
-        if(!res.ok) return;
-        const job = await res.json();
-
-        // Update progress bar
-        $('vm-prog-bar').style.width = (job.progress||0)+'%';
-        $('vm-prog-msg').textContent  = job.status||'Processing…';
-
-        if(job.status==='done'){
-          clearInterval(_vmPollId); _vmPollId=null;
-          _showVmResult(jobId, job.platform||_vmPlatform);
-        } else if(job.status==='error'){
-          clearInterval(_vmPollId); _vmPollId=null;
-          _showVmErr(`Error: ${job.error||'Unknown error'}`);
+        const arr=JSON.parse(m[0]);
+        if(Array.isArray(arr)&&arr.length){
+          return arr.map(s=>({
+            narration:s.narration||script.slice(0,200),
+            visual_prompt:s.visual_prompt||'cinematic dark background, professional',
+            caption:s.caption||'',
+          }));
         }
-      }catch(e){
-        // network glitch — keep polling
-      }
-    }, 2000);
+      }catch{}
+    }
   }
 
-  /* ── Show result (download button) ───────────────────────────────────── */
-  function _showVmResult(jobId, platform){
-    $('vm-progress').className='vm-progress';
-    $('vm-create-btn').disabled=false;
-    const links=$('vm-dl-links');
-    links.innerHTML='';
-    const a=document.createElement('a');
-    a.className='vm-dl-btn';
-    a.href=`${DAEMON_URL}/api/video/download/${jobId}`;
-    a.download='';
-    a.target='_blank';
-    a.innerHTML=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Download ${platform.charAt(0).toUpperCase()+platform.slice(1)} MP4`;
-    links.appendChild(a);
-    $('vm-result').className='vm-result on';
+  // Naive fallback: split by paragraph/sentences
+  const paras=script.split(/\n\n+/).filter(Boolean);
+  const chunks=paras.length>1?paras:script.match(/[^.!?]+[.!?]+/g)||[script];
+  const step=Math.max(1,Math.ceil(chunks.length/8));
+  const scenes=[];
+  for(let i=0;i<chunks.length;i+=step){
+    const narration=chunks.slice(i,i+step).join(' ').trim();
+    scenes.push({
+      narration,
+      visual_prompt:`cinematic professional background, dark atmosphere, scene ${scenes.length+1}`,
+      caption:narration.split(' ').slice(0,6).join(' '),
+    });
+    if(scenes.length>=10) break;
   }
+  return scenes;
+}
 
-  /* ── Error display ────────────────────────────────────────────────────── */
-  function _showVmErr(msg){
-    $('vm-progress').className='vm-progress';
-    $('vm-create-btn').disabled=false;
-    const el=$('vm-err');
-    el.textContent=msg;
-    el.className='vm-err on';
+// Non-streaming LLM call using whichever JARVIS provider is active
+async function vmLLMComplete(prompt){
+  const msgs=[{role:'user',content:prompt}];
+  const body={messages:msgs,stream:false,max_tokens:2048,temperature:0.3};
+
+  // Groq
+  if(S.groqKey&&S.provider!=='custom'){
+    const r=await fetch(`${GROQ_BASE}/chat/completions`,{
+      method:'POST',
+      headers:{'Authorization':`Bearer ${S.groqKey}`,'Content-Type':'application/json'},
+      body:JSON.stringify({...body,model:S.activeModel?.id||'llama-3.3-70b-versatile'}),
+      signal:AbortSignal.timeout(30000),
+    });
+    const d=await r.json();
+    return d.choices?.[0]?.message?.content||'';
   }
-
-  /* ── Reset modal ──────────────────────────────────────────────────────── */
-  function resetVideoModal(){
-    $('vm-err').className='vm-err';
-    $('vm-result').className='vm-result';
-    $('vm-progress').className='vm-progress';
-    $('vm-create-btn').disabled=false;
-    $('vm-prog-bar').style.width='0%';
-    $('vm-prog-msg').textContent='';
+  // OpenRouter
+  if(S.orKey&&S.activeModel){
+    const r=await fetch(`${OR_BASE}/chat/completions`,{
+      method:'POST',
+      headers:{'Authorization':`Bearer ${S.orKey}`,'Content-Type':'application/json','HTTP-Referer':'http://localhost:8787','X-Title':'JARVIS'},
+      body:JSON.stringify({...body,model:S.activeModel.id}),
+      signal:AbortSignal.timeout(30000),
+    });
+    const d=await r.json();
+    return d.choices?.[0]?.message?.content||'';
   }
+  // Custom API (OpenAI-compat only)
+  const api=S.customApis?.find(a=>a.active&&a.type==='openai');
+  if(api){
+    const r=await fetch(`${api.url}/chat/completions`,{
+      method:'POST',
+      headers:{'Authorization':`Bearer ${api.key}`,'Content-Type':'application/json'},
+      body:JSON.stringify({...body,model:api.model}),
+      signal:AbortSignal.timeout(30000),
+    });
+    const d=await r.json();
+    return d.choices?.[0]?.message?.content||'';
+  }
+  throw new Error('No LLM available — add a Groq/OpenRouter key in ⚙ Settings');
+}
 
-  /* ── Close on backdrop click ──────────────────────────────────────────── */
-  $('video-modal').addEventListener('click',e=>{
-    if(e.target===$('video-modal')) closeVideoModal();
+// ═══════════════════════════════════════════════════════════════════════════
+// Phase 2a — Fetch image from Pollinations.ai (Flux, free, CORS-OK)
+// ═══════════════════════════════════════════════════════════════════════════
+function vmFetchImage(prompt,W,H,seed){
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.crossOrigin='anonymous';
+    const full=encodeURIComponent(prompt+', cinematic, 8k, photorealistic, professional, no text, no watermark');
+    img.src=`https://image.pollinations.ai/prompt/${full}?width=${W}&height=${H}&nologo=true&seed=${seed}&model=flux&enhance=true`;
+    img.onload=()=>resolve(img);
+    img.onerror=()=>{
+      // Fallback: gradient canvas
+      const c=document.createElement('canvas'); c.width=W; c.height=H;
+      const x=c.getContext('2d');
+      const g=x.createLinearGradient(0,0,W,H);
+      g.addColorStop(0,'#0d0d18'); g.addColorStop(1,'#1a1a2e');
+      x.fillStyle=g; x.fillRect(0,0,W,H);
+      const img2=new Image();
+      c.toBlob(b=>{img2.src=URL.createObjectURL(b);img2.onload=()=>resolve(img2);});
+    };
   });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Phase 2b — TTS: StreamElements (primary) → Web Speech (fallback)
+// ═══════════════════════════════════════════════════════════════════════════
+async function vmFetchAudio(text,voiceCfg){
+  // Try StreamElements (free TTS API, returns MP3, supports CORS)
+  if(voiceCfg.se&&VM.audioCtx){
+    try{
+      const url=`https://api.streamelements.com/kappa/v2/speech?voice=${voiceCfg.se}&text=${encodeURIComponent(text)}`;
+      const resp=await fetch(url,{signal:AbortSignal.timeout(15000)});
+      if(resp.ok){
+        const buf=await resp.arrayBuffer();
+        return await VM.audioCtx.decodeAudioData(buf);
+      }
+    }catch(e){ /* fall through */ }
+  }
+  // Estimate duration from word count (for timing without audio)
+  const words=text.trim().split(/\s+/).length;
+  return {duration:Math.max(4,words/2.5), _webSpeech:text, _lang:voiceCfg.lang};
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Phase 3 — Canvas recording
+// ═══════════════════════════════════════════════════════════════════════════
+async function vmRecord(scenes,W,H,voiceCfg){
+  const canvas=document.createElement('canvas');
+  canvas.width=W; canvas.height=H;
+  const ctx=canvas.getContext('2d',{alpha:false});
+
+  // Set up MediaRecorder — video + audio combined
+  const audioDest=VM.audioCtx.createMediaStreamDestination();
+  const videoStream=canvas.captureStream(25);
+  const combined=new MediaStream([
+    ...videoStream.getVideoTracks(),
+    ...audioDest.stream.getAudioTracks(),
+  ]);
+
+  const mime=MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
+    ?'video/webm;codecs=vp9,opus':'video/webm';
+  VM.chunks=[];
+  const rec=new MediaRecorder(combined,{mimeType:mime,videoBitsPerSecond:6_000_000});
+  rec.ondataavailable=e=>{ if(e.data&&e.data.size>0) VM.chunks.push(e.data); };
+  rec.start(200);
+
+  const FADE=0.18; // fraction of scene duration for fade in/out
+
+  for(let i=0;i<scenes.length;i++){
+    if(VM.aborted){ rec.stop(); return new Blob(VM.chunks,{type:mime}); }
+    const s=scenes[i];
+    const durSec=s._audio?.duration||8;
+    const pct=50+Math.round(i/scenes.length*46);
+    vmProg(pct,`🎞 Rendering scene ${i+1}/${scenes.length} (${Math.round(durSec)}s)…`);
+
+    // Play audio
+    let audioEndPromise=Promise.resolve();
+    if(s._audio&&s._audio.buffer!==undefined&&VM.audioCtx){
+      // AudioBuffer from StreamElements
+      const src=VM.audioCtx.createBufferSource();
+      src.buffer=s._audio;
+      src.connect(audioDest);
+      src.connect(VM.audioCtx.destination);
+      src.start();
+      audioEndPromise=new Promise(r=>{ src.onended=r; setTimeout(r,(durSec+1)*1000); });
+    } else if(s._audio&&s._audio._webSpeech){
+      // Web Speech fallback — audio plays to speakers (not in file, but user hears it)
+      vmSpeak(s._audio._webSpeech, s._audio._lang);
+    }
+
+    // Render frames for this scene duration
+    const kb=KB_PRESETS[i%KB_PRESETS.length];
+    await vmRenderScene(ctx,s._img,s.caption,W,H,durSec,kb,FADE);
+
+    await audioEndPromise;
+  }
+
+  // Final black frame for 0.3s
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H);
+  await vmSleep(300);
+
+  rec.stop();
+  await new Promise(r=>rec.onstop=r);
+  return new Blob(VM.chunks,{type:mime});
+}
+
+// ── Render a single scene with Ken Burns + fade ────────────────────────────
+function vmRenderScene(ctx,img,caption,W,H,durSec,kb,FADE){
+  return new Promise(resolve=>{
+    const startMs=performance.now();
+    const durMs=durSec*1000;
+    const font=`"Inter",-apple-system,Arial,sans-serif`;
+
+    function frame(now){
+      if(VM.aborted){ resolve(); return; }
+      const t=Math.min((now-startMs)/durMs,1);
+      const ease=t<0.5?2*t*t:-1+(4-2*t)*t; // easeInOut
+
+      // Ken Burns transform
+      const zoom=kb.z0+(kb.z1-kb.z0)*ease;
+      const sw=W/zoom, sh=H/zoom;
+      const sx=(kb.ox0+(kb.ox1-kb.ox0)*ease)*W + (W-sw)/2;
+      const sy=(kb.oy0+(kb.oy1-kb.oy0)*ease)*H + (H-sh)/2;
+
+      // Draw image
+      if(img){ ctx.drawImage(img,sx,sy,sw,sh,0,0,W,H); }
+      else { ctx.fillStyle='#0d0d18'; ctx.fillRect(0,0,W,H); }
+
+      // Dark vignette overlay
+      const vig=ctx.createRadialGradient(W/2,H/2,H*0.3,W/2,H/2,H*0.75);
+      vig.addColorStop(0,'rgba(0,0,0,0)');
+      vig.addColorStop(1,'rgba(0,0,0,0.45)');
+      ctx.fillStyle=vig; ctx.fillRect(0,0,W,H);
+
+      // Caption
+      if(caption) vmDrawCaption(ctx,caption,W,H,font,t,FADE);
+
+      // Fade in / fade out overlay
+      const fadeOpacity=t<FADE ? 1-t/FADE : t>(1-FADE) ? (t-(1-FADE))/FADE : 0;
+      if(fadeOpacity>0){
+        ctx.fillStyle=`rgba(0,0,0,${fadeOpacity})`;
+        ctx.fillRect(0,0,W,H);
+      }
+
+      if(t<1) requestAnimationFrame(frame);
+      else resolve();
+    }
+    requestAnimationFrame(frame);
+  });
+}
+
+// ── Burn caption onto canvas ───────────────────────────────────────────────
+function vmDrawCaption(ctx,text,W,H,font,t,FADE){
+  const fadeIn=Math.min(1,(t-FADE*0.5)/(FADE*0.5));
+  const fadeOut=t>(1-FADE)?Math.max(0,1-(t-(1-FADE))/(FADE*0.5)):1;
+  const alpha=Math.min(fadeIn,fadeOut);
+  if(alpha<=0) return;
+
+  const fs=Math.max(22,Math.round(W/38));
+  ctx.save();
+  ctx.globalAlpha=alpha;
+  ctx.font=`700 ${fs}px ${font}`;
+  ctx.textAlign='center';
+  ctx.textBaseline='alphabetic';
+
+  // Word-wrap
+  const maxW=W*0.82;
+  const words=text.split(' '); const lines=[]; let cur='';
+  for(const w of words){
+    const test=cur?cur+' '+w:w;
+    if(ctx.measureText(test).width>maxW&&cur){ lines.push(cur); cur=w; }
+    else cur=test;
+  }
+  if(cur) lines.push(cur);
+
+  const lh=fs*1.35;
+  const totalH=lines.length*lh;
+  const py=H-totalH-H/11;
+  const pad=fs*0.55;
+  const bw=Math.max(...lines.map(l=>ctx.measureText(l).width))+pad*2;
+
+  // Pill background
+  ctx.fillStyle='rgba(0,0,0,0.58)';
+  vmRoundRect(ctx,W/2-bw/2,py-pad,bw,totalH+pad*2,fs*0.45);
+  ctx.fill();
+
+  // Text
+  ctx.fillStyle='#fff';
+  lines.forEach((l,i)=>ctx.fillText(l,W/2,py+i*lh+fs));
+  ctx.restore();
+}
+
+function vmRoundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r);
+  ctx.closePath();
+}
+
+// ── Web Speech fallback ────────────────────────────────────────────────────
+function vmSpeak(text,lang){
+  if(!window.speechSynthesis) return;
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang=lang||'en-US'; u.rate=1.0; u.pitch=1.0;
+  const voices=speechSynthesis.getVoices().filter(v=>v.lang.startsWith(lang?.slice(0,2)||'en'));
+  if(voices.length) u.voice=voices[0];
+  speechSynthesis.speak(u);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// UI helpers
+// ═══════════════════════════════════════════════════════════════════════════
+function vmProg(pct,msg){
+  $('vm-prog-bar').style.width=pct+'%';
+  $('vm-prog-msg').textContent=msg;
+}
+
+function vmShowResult(blob){
+  $('vm-progress').className='vm-progress';
+  const url=URL.createObjectURL(blob);
+  const mb=(blob.size/1024/1024).toFixed(1);
+  const ext=blob.type.includes('webm')?'webm':'mp4';
+  const plat=VM.platform.charAt(0).toUpperCase()+VM.platform.slice(1);
+  const links=$('vm-dl-links'); links.innerHTML='';
+  const a=document.createElement('a');
+  a.className='vm-dl-btn';
+  a.href=url;
+  a.download=`jarvis-video-${VM.platform}-${Date.now()}.${ext}`;
+  a.innerHTML=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    ⬇ Download ${plat} (${mb} MB)`;
+  links.appendChild(a);
+  $('vm-result').className='vm-result on';
+}
+
+function vmShowErr(msg){
+  $('vm-progress').className='vm-progress';
+  $('vm-create-btn').disabled=false;
+  const el=$('vm-err');
+  el.textContent='⚠ '+msg;
+  el.className='vm-err on';
+}
+
+function vmReset(){
+  VM.aborted=false;
+  $('vm-err').className='vm-err';
+  $('vm-result').className='vm-result';
+  $('vm-progress').className='vm-progress';
+  $('vm-create-btn').disabled=false;
+  $('vm-prog-bar').style.width='0%';
+  $('vm-prog-msg').textContent='';
+}
+
+function vmSleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
 })();
 </script>
 </body>
