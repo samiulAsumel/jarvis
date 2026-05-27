@@ -29,8 +29,17 @@ class JarvisConfig(BaseSettings):
 
     # ── Cloud LLM (OpenRouter — fast, many models) ────────────────────────────
     openrouter_api_key: str  = ""
-    openrouter_model: str    = "qwen/qwen-2.5-coder-32b-instruct"
+    openrouter_model: str    = "nvidia/nemotron-3-super-120b-a12b:free"  # best free model
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
+
+    # ── Free LLM (Groq — ultra-fast, free tier, Llama 3.3 70B) ───────────────
+    groq_api_key: str   = ""
+    groq_model: str     = "llama-3.3-70b-versatile"
+    groq_base_url: str  = "https://api.groq.com/openai/v1"
+
+    # ── Free LLM (Google Gemini — free tier, gemini-2.0-flash) ───────────────
+    gemini_api_key: str = ""
+    gemini_model: str   = "gemini-2.0-flash"
 
     # ── Memory ────────────────────────────────────────────────────────────────
     memory_dir: Path = Field(default_factory=lambda: Path.home() / ".local/share/jarvis/memory")

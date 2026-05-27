@@ -17,6 +17,18 @@ llm:
   # ── Cloud (Anthropic Claude) — better reasoning, requires API key ────────
   claude_model: "claude-sonnet-4-6"   # set JARVIS_ANTHROPIC_API_KEY to enable
 
+  # ── Free (Groq) — ultra-fast Llama 3.3 70B, 30 RPM free ─────────────────
+  # Get key: https://console.groq.com → free, no credit card needed
+  # set JARVIS_GROQ_API_KEY=gsk_... to enable (takes priority over Claude)
+  groq_model: "llama-3.3-70b-versatile"
+  # other free groq models: mixtral-8x7b-32768, gemma2-9b-it, llama-3.1-8b-instant
+
+  # ── Free (Google Gemini) — gemini-2.0-flash, 15 RPM free ────────────────
+  # Get key: https://aistudio.google.com → AI Studio → Get API Key (free)
+  # set JARVIS_GEMINI_API_KEY=AIza... to enable
+  gemini_model: "gemini-2.0-flash"
+  # other free gemini models: gemini-1.5-flash, gemini-1.5-flash-8b
+
 voice:
   # whisper.cpp binary (NixOS path after nixos-rebuild switch)
   whisper_binary: "/run/current-system/sw/bin/whisper-cpp"
