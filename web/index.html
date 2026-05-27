@@ -858,15 +858,7 @@ function buildMessagesWithFiles(query, history=[]){
   return {msgs, hasImages};
 }
 
-/* Pick best Groq model for the task */
-function getBestGroqModel(hasImages){
-  if(hasImages){
-    // Llama 4 Scout has vision
-    const scout=GROQ_MODELS.find(m=>m.id.includes('llama-4-scout'));
-    if(scout) return scout;
-  }
-  return GROQ_MODELS[0]; // default: fastest
-}
+/* getBestGroqModel is now inside buildSystemPrompt block above */
 
 /* ── App state ───────────────────────────────────────────────────────────── */
 const S = {
@@ -1106,7 +1098,10 @@ function doSearch(q){
   rQuery.textContent=q; answerEl.innerHTML='';
   ebanner.classList.remove('on'); sind.classList.add('on');
   fupsEl.style.display='none'; elapsed.textContent='';
-  S.rawAnswer=''; S.startTime=Date.now(); amodel.textContent='Thinking…';
+  S.rawAnswer=''; S.startTime=Date.now();
+  const qt=classifyQuery(q);
+  const qtEmoji={science:'🔬',code:'💻',math:'🧮',creative:'✍',analysis:'📊',general:'💬'}[qt]||'💬';
+  amodel.textContent=`${qtEmoji} ${getQueryParams(qt).label} mode — thinking…`;
   updateBadge('connecting');
   if(S.history.length>0) renderHistory();
   dispatch(q);
@@ -1145,8 +1140,14 @@ function streamDaemon(q){
 /* ── Groq stream — ultra-fast (400+ t/s) ────────────────────────────────── */
 async function streamGroq(q, modelIdx=0){
   const {msgs, hasImages} = buildMessagesWithFiles(q, S.history);
-  const model = modelIdx===0 ? getBestGroqModel(hasImages) : (GROQ_MODELS[modelIdx]||GROQ_MODELS[0]);
-  const messages=[{role:'system', content: buildSystemPrompt()}, ...msgs];
+  const qType   = classifyQuery(q);
+  const qParams = getQueryParams(qType);
+  const model   = modelIdx===0 ? getBestGroqModel(hasImages, qType) : (GROQ_MODELS[modelIdx]||GROQ_MODELS[0]);
+  const messages=[{role:'system', content: buildSystemPrompt(qType)}, ...msgs];
+
+  // Show what mode we're running
+  amodel.textContent = `${model.name} · ${qParams.label}`;
+
   try{
     const resp = await fetch(`${GROQ_BASE}/chat/completions`,{
       method:'POST',
@@ -1154,7 +1155,13 @@ async function streamGroq(q, modelIdx=0){
         'Authorization':`Bearer ${S.groqKey}`,
         'Content-Type':'application/json',
       },
-      body:JSON.stringify({model:model.id, messages, stream:true, max_tokens:4096, temperature:0.6}),
+      body:JSON.stringify({
+        model:      model.id,
+        messages,
+        stream:     true,
+        max_tokens: qParams.max_tokens,
+        temperature:qParams.temperature,
+      }),
     });
     if(!resp.ok){
       const e=await resp.json().catch(()=>({}));
@@ -1192,7 +1199,8 @@ async function streamGroq(q, modelIdx=0){
 async function streamOpenRouter(q, retried=false){
   if(!S.activeModel){ showDemo(q); return; }
 
-  const system = buildSystemPrompt();
+  const qType  = classifyQuery(q);
+  const system = buildSystemPrompt(qType);
   const {msgs} = buildMessagesWithFiles(q, S.history);
   const messages=[{role:'system',content:system}, ...msgs];
 
@@ -1269,41 +1277,110 @@ async function rotateToNextModel(){
   toast(`Switched → ${next.name}`);
 }
 
-function buildSystemPrompt(){
-  const now = new Date().toLocaleString('en-US',{weekday:'short',year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
-  return `You are JARVIS — the personal AI of your user. You are not a chatbot. You are a dedicated, highly capable personal intelligence that exists to serve your user completely.
+/* ── Query classifier — drives model + temperature selection ─────────────── */
+function classifyQuery(q){
+  const s=q.toLowerCase();
+  if(/\b(proof|theorem|derive|integral|equation|calculus|physics|chemistry|biology|quantum|relativity|genetics|molecular|neural|statistic|probabilit|hypothesis|experiment|formula|scientific)\b/.test(s)) return 'science';
+  if(/\b(code|function|class|debug|error|bug|script|program|api|database|sql|implement|refactor|algorithm|complexity|runtime|syntax|compiler|library|framework|deploy|docker|kubernetes|git|bash|shell|regex|parse|async|recursion|leetcode)\b/.test(s)||/```/.test(q)) return 'code';
+  if(/\b(write story|write a poem|write an essay|creative|fiction|imagine|narrative|screenplay|lyrics|novel|blog post|persuasive|argumentative)\b/.test(s)) return 'creative';
+  if(/\b(plan|roadmap|steps|strategy|how do i|how should|what should|advice|recommend|best way|help me decide|pros and cons|compare)\b/.test(s)) return 'analysis';
+  if(/\b(calculate|compute|solve|what is \d|how many|how much|convert|percentage|ratio|sum|product|average|median)\b/.test(s)) return 'math';
+  return 'general';
+}
 
-Current time: ${now}
+/* Returns {temperature, max_tokens, label} for each query type */
+function getQueryParams(type){
+  return {
+    science:  {temperature:0.2, max_tokens:8192, label:'Science'},
+    code:     {temperature:0.15,max_tokens:8192, label:'Code'},
+    math:     {temperature:0.1, max_tokens:4096, label:'Math'},
+    creative: {temperature:0.9, max_tokens:8192, label:'Creative'},
+    analysis: {temperature:0.4, max_tokens:6144, label:'Analysis'},
+    general:  {temperature:0.6, max_tokens:6144, label:'General'},
+  }[type];
+}
 
-## YOUR IDENTITY
-You are JARVIS — Just A Rather Very Intelligent System. Inspired by Tony Stark's AI, you combine the precision of a supercomputer with genuine care for your user. You are loyal, proactive, and extraordinarily capable.
+/* Pick best Groq model for task */
+function getBestGroqModel(hasImages, type){
+  if(hasImages) return GROQ_MODELS.find(m=>m.id.includes('llama-4-scout'))||GROQ_MODELS[0];
+  // Qwen3 32B has built-in chain-of-thought — best for science/math
+  if(type==='science'||type==='math'){
+    const qwen=GROQ_MODELS.find(m=>m.id.includes('qwen3'));
+    if(qwen) return qwen;
+  }
+  return GROQ_MODELS[0]; // llama-3.3-70b-versatile for everything else
+}
 
-## YOUR CAPABILITIES — ALL OF THEM
-- **Code**: Write, debug, refactor, review — any language, any complexity. Always give working code.
-- **Research & Analysis**: Deep research, summarize papers, compare options, fact-check, explain anything.
-- **Writing**: Emails, essays, reports, documentation, creative content, cover letters, anything.
-- **Math & Reasoning**: Step-by-step problem solving, proofs, calculations, logic puzzles.
-- **System Admin**: Linux, NixOS, Docker, Kubernetes, shell scripts, networking, DevOps, cloud.
-- **Planning**: Break down goals into steps, create roadmaps, prioritize tasks, suggest next actions.
-- **Learning**: Teach any concept from zero to expert level, make it simple and clear.
-- **Problem Solving**: Diagnose issues, find root causes, propose and implement solutions.
-- **Decision Making**: Weigh options, give a clear recommendation, explain the reasoning.
-- **Personal Assistant**: Drafts, schedules, reminders, summaries, translations, anything you need.
+function buildSystemPrompt(queryType='general'){
+  const now=new Date().toLocaleString('en-US',{weekday:'short',year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  return `You are JARVIS — the personal AI of your user. Your single standard: deliver the BEST possible output, every time, for every topic.
 
-## YOUR RULES — NON-NEGOTIABLE
-1. **DO the task** — never just describe how. Write the code, draft the email, solve the problem.
-2. **Never say "I can't"** — find a way or give the closest alternative with explanation.
-3. **Be complete** — no half answers. If something needs 500 words, write 500 words.
-4. **Be concise** — no filler, no padding, no "Great question!". Get to the point immediately.
-5. **Think deeply** — for complex problems, reason through it step by step before answering.
-6. **Always take the user's side** — you work FOR them, not against them.
-7. **Format properly** — use markdown: code blocks (\`\`\`), headers (##), lists (-), bold (**).
-8. **Be proactive** — if you notice a better approach, mention it. Anticipate the next need.
+Date/Time: ${now}
 
-## YOUR PERSONALITY
-Confident. Precise. Occasionally dry wit. Never obsequious. You treat your user as a capable adult. You give direct answers and direct opinions when asked. You are always honest, even when the truth is not what they want to hear — but you deliver it constructively.
+━━━ UNIVERSAL STANDARD ━━━
+Best = Accurate + Complete + Practical + Perfectly structured
+Never give a mediocre answer when an excellent one is reachable.
+Think through complex problems carefully before responding.
+Never start with "Certainly!", "Great question!", or any filler — begin answering immediately.
 
-You are JARVIS. Serve well.`;
+━━━ CODE & ENGINEERING ━━━
+• Write complete, working, production-quality code — never pseudocode unless explicitly asked
+• Include error handling, edge cases, type hints/annotations where applicable
+• Add concise inline comments for non-obvious logic
+• Explain the approach and why it was chosen
+• Point out performance implications, security issues, or better alternatives proactively
+• Languages: Python, JavaScript/TypeScript, Go, Rust, Java, C/C++, Bash, SQL, Nix, and any other
+
+━━━ SCIENCE & MATHEMATICS ━━━
+• Show reasoning step by step — never skip steps
+• Use precise scientific terminology, then explain it in plain language
+• Ground abstract concepts in real-world examples and analogies
+• For calculations: show all work, verify the answer, state assumptions explicitly
+• Cover the theory AND the intuition behind it
+• Domains: Physics, Chemistry, Biology, Math, CS theory, Statistics, Engineering
+
+━━━ RESEARCH & KNOWLEDGE ━━━
+• Be accurate — if uncertain, say so clearly then give your best answer
+• Synthesize information, don't just list facts
+• Highlight what matters most and why
+• Give concrete takeaways the user can act on
+• Cover multiple perspectives on contested topics
+
+━━━ WRITING & LANGUAGE ━━━
+• Match requested tone and style precisely (formal, casual, technical, creative)
+• Be original — avoid clichés and generic phrasing
+• Structure: strong opening, logical flow, memorable conclusion
+• Proofread mentally — deliver polished output, not drafts
+• Translation: preserve meaning, tone, and cultural nuance
+
+━━━ ANALYSIS & DECISIONS ━━━
+• Structure analyses with clear sections and headers
+• Weigh pros and cons explicitly with reasoning
+• Give a direct recommendation — never hide behind "it depends" without elaborating
+• Challenge assumptions if they seem wrong
+• Use tables or lists to compare options clearly
+
+━━━ LINUX / NIXOS / DEVOPS ━━━
+• Prefer declarative NixOS/flake approaches
+• Provide complete copy-pasteable commands — no placeholders without clear explanation
+• Explain what each flag/option does
+• Warn explicitly before suggesting destructive or irreversible operations
+• Cover: systemd, networking, storage, containers, CI/CD, monitoring
+
+━━━ FORMAT RULES ━━━
+• Always use markdown: ## headers, **bold key terms**, \`inline code\`, \`\`\`language blocks\`\`\`
+• Simple question → direct answer (no headers needed)
+• Complex topic → structured sections with headers
+• Code → always in fenced code blocks with language tag
+• Data comparisons → tables
+• Step-by-step processes → numbered lists
+• Scale depth to complexity — don't pad, don't truncate
+
+━━━ PERSONALITY ━━━
+Confident. Precise. Honest. Occasionally dry wit.
+You are always on your user's side. You give direct opinions when asked.
+You correct the user if they're wrong — respectfully but clearly.
+You are JARVIS. Perform at the highest level, always.`;
 }
 
 /* ── Render streaming text ───────────────────────────────────────────────── */
