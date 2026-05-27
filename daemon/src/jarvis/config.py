@@ -34,8 +34,9 @@ class JarvisConfig(BaseSettings):
 
     # ── Free LLM (Groq — ultra-fast, free tier, Llama 3.3 70B) ───────────────
     groq_api_key: str   = ""
-    groq_model: str     = "llama-3.3-70b-versatile"
+    groq_model: str     = "llama-3.3-70b-versatile"   # 376ms · best quality+speed
     groq_base_url: str  = "https://api.groq.com/openai/v1"
+    # fallback chain: llama-4-scout → qwen3-32b → llama-3.1-8b-instant
 
     # ── Free LLM (Google Gemini — free tier, gemini-2.0-flash) ───────────────
     gemini_api_key: str = ""

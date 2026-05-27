@@ -570,12 +570,14 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
    ──────────────────────────────────────────────────────────────────────── */
 const OR_BASE   = 'https://openrouter.ai/api/v1';
 const GROQ_BASE = 'https://api.groq.com/openai/v1';
-// Groq free models — ultra-fast (400+ tokens/sec)
+// Groq models — live-tested, ordered by speed (ms to first token)
 const GROQ_MODELS = [
-  { id:'moonshotai/kimi-k2-instruct',  name:'Kimi K2',         ctx:'131k' },
-  { id:'llama-3.3-70b-versatile',      name:'Llama 3.3 70B',   ctx:'128k' },
-  { id:'deepseek-r1-distill-llama-70b',name:'R1-Llama 70B',    ctx:'128k' },
-  { id:'gemma2-9b-it',                 name:'Gemma2 9B',       ctx:'8k'   },
+  { id:'llama-3.3-70b-versatile',                  name:'Llama 3.3 70B',   ctx:'128k', ms:376  }, // ★ best
+  { id:'openai/gpt-oss-120b',                      name:'GPT-OSS 120B',    ctx:'131k', ms:372  },
+  { id:'meta-llama/llama-4-scout-17b-16e-instruct',name:'Llama 4 Scout',   ctx:'131k', ms:427  },
+  { id:'qwen/qwen3-32b',                           name:'Qwen3 32B',       ctx:'128k', ms:441  },
+  { id:'llama-3.1-8b-instant',                     name:'Llama 3.1 8B',    ctx:'128k', ms:457  }, // fastest fallback
+  { id:'groq/compound-mini',                       name:'Compound Mini',   ctx:'128k', ms:796  },
 ];
 
 // Ordered by SPEED (fastest confirmed first — live-tested)
@@ -593,7 +595,7 @@ const FREE_MODELS = [
 ];
 
 const _DEFAULT_OR_KEY   = 'OPENROUTER_KEY_REMOVED';
-const _DEFAULT_GROQ_KEY = localStorage.getItem('_jv_groq') || '';
+const _DEFAULT_GROQ_KEY = 'GROQ_KEY_REMOVED';
 
 const DAEMON_URL = 'http://127.0.0.1:8787';
 const WS_URL     = 'ws://127.0.0.1:8787/ws/chat';
@@ -601,7 +603,7 @@ const WS_URL     = 'ws://127.0.0.1:8787/ws/chat';
 /* ── App state ───────────────────────────────────────────────────────────── */
 const S = {
   orKey:         localStorage.getItem('_jv_or')   || _DEFAULT_OR_KEY,
-  groqKey:       localStorage.getItem('_jv_groq') || '',
+  groqKey:       localStorage.getItem('_jv_groq') || _DEFAULT_GROQ_KEY,
   activeModel:   JSON.parse(localStorage.getItem('_jv_model') || 'null'),
   provider:      'connecting',   // 'daemon' | 'groq' | 'openrouter' | 'demo'
   streaming:     false,
@@ -682,10 +684,10 @@ async function autoConnect(){
 
   offlineEl.classList.add('on');
 
-  // 2. Groq — fastest (400+ t/s), if user has a key
+  // 2. Groq — fastest (400+ t/s, ~376ms first word)
   if (S.groqKey){
     S.provider = 'groq';
-    chipOnline(`Llama 3.3 70B · Groq ⚡`);
+    chipOnline(`${GROQ_MODELS[0].name} · Groq ⚡`);
     return;
   }
 
