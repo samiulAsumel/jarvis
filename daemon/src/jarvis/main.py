@@ -19,6 +19,7 @@ from .agent import Op, SystemAgent
 from .config import get_config
 from .memory import JarvisMemory
 from .router import LLMRouter, Message
+from .video import get_job, start_video_job
 from .voice.stt import WhisperSTT
 from .voice.tts import PiperTTS
 
@@ -78,6 +79,12 @@ class SpeakRequest(BaseModel):
 class AgentRequest(BaseModel):
     op:     str
     kwargs: dict = {}
+
+
+class VideoRequest(BaseModel):
+    script:   str
+    platform: str = "youtube"   # youtube | tiktok | reels | shorts | facebook
+    voice:    str = "en"        # en | en-f | bn | bn-m | banglish
 
 
 # ── Health ─────────────────────────────────────────────────────────────────────
@@ -161,6 +168,64 @@ async def memory_search(q: str, n: int = 5):
             for e in entries
         ]
     }
+
+
+# ── Video creation ─────────────────────────────────────────────────────────────
+
+_VIDEO_OUTPUT = Path.home() / ".local/share/jarvis/videos"
+
+
+def _llm_complete(router_: LLMRouter):
+    """Wrap router.stream into an async complete() for the video pipeline."""
+    async def _complete(prompt: str) -> str:
+        chunks: list[str] = []
+        async for chunk in router_.stream(
+            [Message(role="user", content=prompt)],
+            system_context="You are a professional video scriptwriter. Follow instructions exactly.",
+        ):
+            chunks.append(chunk)
+        return "".join(chunks)
+    return _complete
+
+
+@app.post("/api/video/create")
+async def video_create(req: VideoRequest):
+    if not req.script.strip():
+        raise HTTPException(status_code=400, detail="Script cannot be empty")
+    job_id = start_video_job(
+        script=req.script,
+        platform=req.platform,
+        voice_key=req.voice,
+        llm_complete_fn=_llm_complete(router),
+        output_dir=_VIDEO_OUTPUT,
+    )
+    return {"job_id": job_id}
+
+
+@app.get("/api/video/status/{job_id}")
+async def video_status(job_id: str):
+    job = get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
+
+
+@app.get("/api/video/download/{job_id}")
+async def video_download(job_id: str):
+    job = get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.get("status") != "done" or not job.get("path"):
+        raise HTTPException(status_code=400, detail="Video not ready yet")
+    path = Path(job["path"])
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Video file missing")
+    return FileResponse(
+        str(path),
+        media_type="video/mp4",
+        filename=path.name,
+        headers={"Content-Disposition": f'attachment; filename="{path.name}"'},
+    )
 
 
 # ── WebSocket streaming chat ───────────────────────────────────────────────────

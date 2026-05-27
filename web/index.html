@@ -307,6 +307,78 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 
 #comp-hint{padding:2px 12px 8px;font-size:10px;color:var(--t3);text-align:center}
 
+/* ── VIDEO MODAL ─────────────────────────────────────────────────────────── */
+#video-modal{display:none;position:fixed;inset:0;z-index:300;
+  background:rgba(0,0,0,.75);backdrop-filter:blur(10px);
+  align-items:flex-end;justify-content:center}
+#video-modal.on{display:flex}
+@media(min-width:600px){
+  #video-modal{align-items:center}
+  .vm-box{border-radius:18px}
+}
+.vm-box{background:var(--surface);border:1px solid var(--border2);
+  border-radius:18px 18px 0 0;
+  padding:26px 26px 36px;width:min(560px,100vw);max-height:92vh;overflow-y:auto;
+  position:relative;animation:slideup .22s ease}
+.vm-title{font-size:17px;font-weight:700;color:var(--t1);margin-bottom:18px;
+  display:flex;align-items:center;gap:9px}
+.vm-title svg{flex-shrink:0}
+.vm-close{position:absolute;top:16px;right:16px;background:none;border:none;
+  color:var(--t3);font-size:18px;cursor:pointer;padding:4px 8px;border-radius:6px}
+.vm-close:hover{color:var(--t1);background:var(--surface2)}
+.vm-label{font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;
+  letter-spacing:.8px;margin-bottom:8px;margin-top:16px}
+.vm-script{width:100%;min-height:130px;background:var(--surface2);
+  border:1px solid var(--border2);border-radius:10px;
+  color:var(--t1);font-size:14px;padding:12px 14px;resize:vertical;
+  font-family:inherit;line-height:1.6;box-sizing:border-box}
+.vm-script:focus{outline:none;border-color:rgba(56,189,248,.4)}
+.vm-platforms{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:4px}
+.vm-plat{padding:7px 14px;border-radius:8px;border:1px solid var(--border2);
+  background:var(--surface2);color:var(--t2);font-size:12px;font-weight:600;
+  cursor:pointer;transition:var(--tr);display:flex;align-items:center;gap:6px}
+.vm-plat:hover{border-color:var(--cyan);color:var(--cyan)}
+.vm-plat.sel{background:rgba(56,189,248,.12);border-color:var(--cyan);color:var(--cyan)}
+.vm-voices{display:flex;gap:7px;flex-wrap:wrap}
+.vm-voice{padding:6px 12px;border-radius:7px;border:1px solid var(--border2);
+  background:var(--surface2);color:var(--t2);font-size:12px;font-weight:600;
+  cursor:pointer;transition:var(--tr)}
+.vm-voice:hover{border-color:var(--purple);color:var(--purple)}
+.vm-voice.sel{background:rgba(124,58,237,.12);border-color:var(--purple);color:var(--purple)}
+.vm-create{width:100%;margin-top:20px;padding:13px;border-radius:10px;border:none;
+  background:linear-gradient(135deg,var(--purple),var(--cyan));
+  color:#fff;font-size:14px;font-weight:700;cursor:pointer;
+  letter-spacing:.3px;transition:var(--tr);display:flex;align-items:center;justify-content:center;gap:8px}
+.vm-create:hover{opacity:.88;transform:translateY(-1px)}
+.vm-create:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.vm-progress{margin-top:20px;display:none}
+.vm-progress.on{display:block}
+.vm-prog-bar-wrap{height:6px;background:var(--surface2);border-radius:99px;
+  overflow:hidden;margin:10px 0 8px}
+.vm-prog-bar{height:100%;border-radius:99px;
+  background:linear-gradient(90deg,var(--purple),var(--cyan));
+  transition:width .5s ease}
+.vm-prog-msg{font-size:12px;color:var(--t2);min-height:18px}
+.vm-result{margin-top:16px;display:none;padding:16px;
+  background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.2);
+  border-radius:10px}
+.vm-result.on{display:block}
+.vm-result-title{font-size:13px;font-weight:700;color:var(--green);margin-bottom:12px}
+.vm-dl-btn{display:inline-flex;align-items:center;gap:6px;
+  padding:9px 18px;border-radius:8px;border:1px solid rgba(56,189,248,.3);
+  background:rgba(56,189,248,.08);color:var(--cyan);font-size:13px;
+  font-weight:600;cursor:pointer;transition:var(--tr);text-decoration:none}
+.vm-dl-btn:hover{background:rgba(56,189,248,.18)}
+.vm-err{margin-top:12px;padding:12px;background:rgba(239,68,68,.08);
+  border:1px solid rgba(239,68,68,.2);border-radius:8px;
+  font-size:12px;color:var(--red);display:none}
+.vm-err.on{display:block}
+/* sidebar video button */
+.sb-video{background:rgba(124,58,237,.12);border:1px solid rgba(124,58,237,.25);
+  color:#a78bfa;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:600;
+  cursor:pointer;transition:var(--tr);display:flex;align-items:center;gap:5px}
+.sb-video:hover{background:rgba(124,58,237,.22);color:#c4b5fd}
+
 /* ── SETTINGS MODAL ──────────────────────────────────────────────────────── */
 #settings-modal{display:none;position:fixed;inset:0;z-index:300;
   background:rgba(0,0,0,.72);backdrop-filter:blur(8px);
@@ -467,6 +539,10 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 
   <div class="sb-foot">
     <div id="mem-badge" class="sb-mem" title="Click to clear memory" onclick="clearMemory()">🧠</div>
+    <button class="sb-video" onclick="openVideoModal()" title="Create AI video from script">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+      Video
+    </button>
     <button class="sb-settings" onclick="openSettings()">⚙ Settings</button>
   </div>
 </aside>
@@ -639,6 +715,83 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
       <div class="sm-status" id="api-test-status"></div>
     </div>
     <div class="api-list" id="api-list"></div>
+  </div>
+</div>
+
+<!-- ══ Video modal ═══════════════════════════════════════════════════════ -->
+<div id="video-modal">
+  <div class="vm-box">
+    <button class="vm-close" onclick="closeVideoModal()">✕</button>
+
+    <div class="vm-title">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+      AI Video Creator
+    </div>
+
+    <div class="vm-label">Script / Screenplay</div>
+    <textarea class="vm-script" id="vm-script"
+      placeholder="Paste your full script here — JARVIS will break it into scenes, generate images for each scene, record voiceover, and assemble the final video automatically.&#10;&#10;Example:&#10;Welcome to the future of AI. In this video we'll explore how artificial intelligence is transforming the way we work, create, and communicate..."></textarea>
+
+    <div class="vm-label">Platform & Aspect Ratio</div>
+    <div class="vm-platforms" id="vm-platforms">
+      <div class="vm-plat sel" data-plat="youtube">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8zM9.75 15.5v-7l6.5 3.5-6.5 3.5z"/></svg>
+        YouTube <span style="opacity:.6;font-size:10px">16:9</span>
+      </div>
+      <div class="vm-plat" data-plat="shorts">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8zM9.75 15.5v-7l6.5 3.5-6.5 3.5z"/></svg>
+        Shorts <span style="opacity:.6;font-size:10px">9:16</span>
+      </div>
+      <div class="vm-plat" data-plat="tiktok">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.74a4.85 4.85 0 0 1-1.01-.05z"/></svg>
+        TikTok <span style="opacity:.6;font-size:10px">9:16</span>
+      </div>
+      <div class="vm-plat" data-plat="reels">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+        Reels <span style="opacity:.6;font-size:10px">9:16</span>
+      </div>
+      <div class="vm-plat" data-plat="facebook">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+        Facebook <span style="opacity:.6;font-size:10px">1:1</span>
+      </div>
+    </div>
+
+    <div class="vm-label">Narration Voice</div>
+    <div class="vm-voices" id="vm-voices">
+      <div class="vm-voice sel" data-voice="en">🇺🇸 English</div>
+      <div class="vm-voice" data-voice="en-f">🇺🇸 English ♀</div>
+      <div class="vm-voice" data-voice="bn">🇧🇩 বাংলা</div>
+      <div class="vm-voice" data-voice="bn-m">🇧🇩 বাংলা ♂</div>
+      <div class="vm-voice" data-voice="banglish">🌐 Banglish</div>
+    </div>
+
+    <button class="vm-create" id="vm-create-btn" onclick="startVideoCreation()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+      Create Video
+    </button>
+
+    <!-- Progress -->
+    <div class="vm-progress" id="vm-progress">
+      <div class="vm-prog-bar-wrap"><div class="vm-prog-bar" id="vm-prog-bar" style="width:0%"></div></div>
+      <div class="vm-prog-msg" id="vm-prog-msg">Starting…</div>
+    </div>
+
+    <!-- Error -->
+    <div class="vm-err" id="vm-err"></div>
+
+    <!-- Result -->
+    <div class="vm-result" id="vm-result">
+      <div class="vm-result-title">✅ Video ready!</div>
+      <div id="vm-dl-links" style="display:flex;gap:10px;flex-wrap:wrap"></div>
+    </div>
+
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);font-size:11px;color:var(--t3);line-height:1.7">
+      ⚡ <strong style="color:var(--t2)">100% Free</strong> —
+      Voice: Microsoft Edge TTS &nbsp;·&nbsp;
+      Images: Pollinations.ai (Flux) &nbsp;·&nbsp;
+      Compose: FFmpeg &nbsp;·&nbsp;
+      <span style="color:var(--yellow)">⚠ Requires JARVIS daemon running</span>
+    </div>
   </div>
 </div>
 
@@ -1766,6 +1919,142 @@ function newChat(){
   ta.focus();
   await autoConnect();
   setInterval(autoConnect,60000);
+})();
+
+/* ══════════════════════════════════════════════════════════════════════════
+   VIDEO CREATOR
+   ══════════════════════════════════════════════════════════════════════════ */
+(function(){
+  let _vmPlatform = 'youtube';
+  let _vmVoice    = 'en';
+  let _vmPollId   = null;
+
+  /* ── Open / Close ─────────────────────────────────────────────────────── */
+  window.openVideoModal = function(){
+    if(S.provider !== 'daemon'){
+      toast('⚠ Video creation requires the JARVIS daemon. Start it with: python -m jarvis.main');
+      return;
+    }
+    resetVideoModal();
+    $('video-modal').classList.add('on');
+  };
+  window.closeVideoModal = function(){
+    $('video-modal').classList.remove('on');
+    if(_vmPollId){ clearInterval(_vmPollId); _vmPollId=null; }
+  };
+
+  /* ── Platform & Voice selectors ───────────────────────────────────────── */
+  document.querySelectorAll('.vm-plat').forEach(el=>{
+    el.addEventListener('click',()=>{
+      document.querySelectorAll('.vm-plat').forEach(e=>e.classList.remove('sel'));
+      el.classList.add('sel');
+      _vmPlatform=el.dataset.plat;
+    });
+  });
+  document.querySelectorAll('.vm-voice').forEach(el=>{
+    el.addEventListener('click',()=>{
+      document.querySelectorAll('.vm-voice').forEach(e=>e.classList.remove('sel'));
+      el.classList.add('sel');
+      _vmVoice=el.dataset.voice;
+    });
+  });
+
+  /* ── Start creation ───────────────────────────────────────────────────── */
+  window.startVideoCreation = async function(){
+    const script = ($('vm-script').value||'').trim();
+    if(!script){ toast('Please enter a script first'); return; }
+
+    // Reset UI
+    $('vm-err').className='vm-err';
+    $('vm-result').className='vm-result';
+    $('vm-progress').className='vm-progress on';
+    $('vm-prog-bar').style.width='0%';
+    $('vm-prog-msg').textContent='Submitting job…';
+    $('vm-create-btn').disabled=true;
+
+    try{
+      const res = await fetch(`${DAEMON_URL}/api/video/create`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({script, platform:_vmPlatform, voice:_vmVoice}),
+      });
+      if(!res.ok){
+        const e=await res.json().catch(()=>({}));
+        throw new Error(e.detail||`HTTP ${res.status}`);
+      }
+      const {job_id} = await res.json();
+      _pollJob(job_id);
+    }catch(e){
+      _showVmErr(`Failed to start job: ${e.message}`);
+    }
+  };
+
+  /* ── Poll status ──────────────────────────────────────────────────────── */
+  function _pollJob(jobId){
+    if(_vmPollId) clearInterval(_vmPollId);
+    _vmPollId = setInterval(async()=>{
+      try{
+        const res = await fetch(`${DAEMON_URL}/api/video/status/${jobId}`);
+        if(!res.ok) return;
+        const job = await res.json();
+
+        // Update progress bar
+        $('vm-prog-bar').style.width = (job.progress||0)+'%';
+        $('vm-prog-msg').textContent  = job.status||'Processing…';
+
+        if(job.status==='done'){
+          clearInterval(_vmPollId); _vmPollId=null;
+          _showVmResult(jobId, job.platform||_vmPlatform);
+        } else if(job.status==='error'){
+          clearInterval(_vmPollId); _vmPollId=null;
+          _showVmErr(`Error: ${job.error||'Unknown error'}`);
+        }
+      }catch(e){
+        // network glitch — keep polling
+      }
+    }, 2000);
+  }
+
+  /* ── Show result (download button) ───────────────────────────────────── */
+  function _showVmResult(jobId, platform){
+    $('vm-progress').className='vm-progress';
+    $('vm-create-btn').disabled=false;
+    const links=$('vm-dl-links');
+    links.innerHTML='';
+    const a=document.createElement('a');
+    a.className='vm-dl-btn';
+    a.href=`${DAEMON_URL}/api/video/download/${jobId}`;
+    a.download='';
+    a.target='_blank';
+    a.innerHTML=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Download ${platform.charAt(0).toUpperCase()+platform.slice(1)} MP4`;
+    links.appendChild(a);
+    $('vm-result').className='vm-result on';
+  }
+
+  /* ── Error display ────────────────────────────────────────────────────── */
+  function _showVmErr(msg){
+    $('vm-progress').className='vm-progress';
+    $('vm-create-btn').disabled=false;
+    const el=$('vm-err');
+    el.textContent=msg;
+    el.className='vm-err on';
+  }
+
+  /* ── Reset modal ──────────────────────────────────────────────────────── */
+  function resetVideoModal(){
+    $('vm-err').className='vm-err';
+    $('vm-result').className='vm-result';
+    $('vm-progress').className='vm-progress';
+    $('vm-create-btn').disabled=false;
+    $('vm-prog-bar').style.width='0%';
+    $('vm-prog-msg').textContent='';
+  }
+
+  /* ── Close on backdrop click ──────────────────────────────────────────── */
+  $('video-modal').addEventListener('click',e=>{
+    if(e.target===$('video-modal')) closeVideoModal();
+  });
 })();
 </script>
 </body>
