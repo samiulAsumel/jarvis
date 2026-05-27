@@ -1962,11 +1962,11 @@ const VM_FPS      = 30;            // frames per second
 const VM_BITRATE  = 8_000_000;     // 8 Mbps — broadcast quality
 const VM_FADE     = 0.15;          // fraction of scene duration for fade in/out
 const VM_CARD_DUR = 2.8;           // seconds for intro/outro cards
-const VM_IMG_TO   = 22_000;        // ms image load timeout
+const VM_IMG_TO   = 65_000;        // ms — Flux images take 20-60s, must be generous
 
 // ── State ──────────────────────────────────────────────────────────────────
 const VM={
-  platform:'youtube', voice:'Brian', aborted:false, chunks:[], audioCtx:null,
+  platform:'youtube', voice:'Brian', lang:'en', aborted:false, chunks:[], audioCtx:null,
 };
 
 // ── Platform dimensions ────────────────────────────────────────────────────
@@ -1976,11 +1976,87 @@ const VM_DIM={
 };
 
 // ── Voice → Web Speech lang (StreamElements voice name used directly) ──────
-// Works for English AND Banglish (Brian/Amy reads romanized Bengali fine)
 const VM_VOICE_LANG={
   Brian:'en-GB', Joey:'en-US', Matthew:'en-US', Russell:'en-AU',
   Amy:'en-GB',   Joanna:'en-US', Emma:'en-GB',  Nicole:'en-AU',
 };
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Language auto-detection
+// ═══════════════════════════════════════════════════════════════════════════
+// Common Banglish words (Bengali in English letters)
+const VM_BL_WORDS=['ami','tumi','apni','apnar','amar','amra','tomra','hobe','hobo',
+  'hoye','hoy','ache','achi','theke','jabo','ashbo','korbo','debo','nebo','giye',
+  'niye','korte','jei','sei','ekhane','okhane','keno','ki','ke','onek','khub',
+  'valo','bhalo','sundor','sundar','boro','choto','manus','manush','desh','bari',
+  'ghor','kaj','bazar','rasta','nodi','gram','shohore','akash','megh','brishti',
+  'raat','din','bondhu','bhai','bon','baba','kintu','tobe','jodi','tahole',
+  'ebong','ba','ar','ta','ei','se','oi','eto','emon','chilo','chilen','gelo',
+  'gelen','korlo','korlen','bolce','bolche','dekha','dekhte','jai','jais',
+  'korchi','korchis','likhchi','padchi','khacchi','ghuri','ghurie'];
+
+function vmDetectLang(text){
+  // বাংলা Unicode → Bengali
+  if(/[ঀ-৿]/.test(text)) return 'bn';
+  // Banglish: count matching words
+  const words=text.toLowerCase().replace(/[^a-z\s]/g,' ').split(/\s+/).filter(Boolean);
+  const hits=words.filter(w=>VM_BL_WORDS.includes(w)).length;
+  if(hits>=2||(words.length>3&&hits/words.length>0.07)) return 'banglish';
+  return 'en';
+}
+
+// ── Banglish→English dictionary for image prompts (when no LLM key) ────────
+const VM_BL_EN={
+  // Nature / Geography
+  desh:'country land',nodi:'river waterway',akash:'sky',megh:'clouds',
+  brishti:'rain rainy',rod:'sunlight golden hour',raat:'night dark',din:'day',
+  gram:'rural village',shohore:'city urban',bazar:'bustling market',
+  bari:'traditional house',ghor:'home interior cozy',rasta:'road street',
+  phool:'flowers blooming',gach:'trees forest',pani:'water lake',
+  pakhi:'birds flying',maach:'fish water',mati:'earth soil',pahar:'mountain hill',
+  shomudro:'ocean sea beach',chhara:'waterfall stream',
+  // Bangladesh specific
+  bangladesh:'Bangladesh landscape',dhaka:'Dhaka city Bangladesh',
+  padma:'Padma river Bangladesh green',meghna:'Meghna river Bangladesh',
+  jamuna:'Jamuna river Bangladesh',shundarbon:'Sundarbans mangrove forest',
+  rickshaw:'colorful rickshaw cycle Bangladesh street',
+  nouka:'traditional wooden boat river Bangladesh',
+  khetkhola:'paddy field rice agriculture Bangladesh',
+  // People / Social
+  manus:'people crowd',manush:'people',bondhu:'friends together',
+  bhai:'brothers family',bon:'sisters family',baba:'father family man',
+  ma:'mother woman family',shishu:'children kids',
+  chhele:'boy young man',meye:'girl young woman',
+  // Education / Work
+  shiksha:'education classroom learning',school:'school building',
+  college:'college university campus',kaj:'work profession office',
+  chakri:'job employment',byabsha:'business commerce',
+  // Food
+  khabar:'food meal delicious',khana:'food eating',
+  bhat:'rice food',dal:'lentil soup food',maach:'fish curry',
+  mishti:'sweets dessert',
+  // Feelings / Abstract
+  shobar:'beautiful aesthetic',sundor:'beautiful scenery',
+  anondo:'joy happiness celebration',kosto:'sadness emotion',
+  shanti:'peace tranquil serene',shopno:'dream surreal',
+  shafol:'success achievement',
+  // Common adjectives
+  boro:'large grand',choto:'small intimate',valo:'good positive',
+  khub:'very intense',onek:'many abundant',shundor:'beautiful',
+};
+
+function vmBanglishToVisual(narration){
+  // Extract English meaning from Banglish words using dictionary
+  const words=narration.toLowerCase().replace(/[^a-z\s]/g,' ').split(/\s+/);
+  const found=[];
+  for(const w of words){
+    if(VM_BL_EN[w]) found.push(VM_BL_EN[w]);
+  }
+  // Also keep any English proper nouns (capitalized in original)
+  const properNouns=narration.match(/\b[A-Z][a-z]{2,}\b/g)||[];
+  const all=[...new Set([...found,...properNouns])].slice(0,6);
+  return all.length>0 ? all.join(', ') : 'Bangladesh, cinematic scene';
+}
 
 // ── Ken Burns presets ──────────────────────────────────────────────────────
 const VM_KB=[
@@ -2021,25 +2097,40 @@ window.startVideoCreation=async function(){
   $('vm-create-btn').disabled=true;
 
   try{
-    // Phase 1 — LLM scene breakdown
-    vmProg(4,'🧠 Analyzing script and planning scenes…');
-    const scenes=await vmParseScenes(script);
+    // ── Phase 1: Language detection + LLM scene breakdown ─────────────────
+    VM.lang=vmDetectLang(script);
+    const langLabel=VM.lang==='bn'?'বাংলা':VM.lang==='banglish'?'Banglish':'English';
+    vmProg(4,`🔍 ভাষা / Language: ${langLabel} — planning scenes…`);
+    const scenes=await vmParseScenes(script,VM.lang);
     if(VM.aborted) return;
-    vmProg(10,`✅ ${scenes.length} scenes planned`);
+    vmProg(10,`✅ ${scenes.length} scenes planned · ${langLabel} · Voice: ${VM.voice||'Brian'}`);
 
-    // Phase 2 — Load assets
+    // ── Phase 2: Init audio context ────────────────────────────────────────
     const [W,H]=VM_DIM[VM.platform]||[1280,720];
     const voiceName=VM.voice||'Brian';
     VM.audioCtx=new AudioContext();
     if(VM.audioCtx.state==='suspended') await VM.audioCtx.resume().catch(()=>{});
 
+    // ── Phase 2a: Load ALL images in PARALLEL ─────────────────────────────
+    // Flux image generation takes 20-60s — parallel is essential for speed
+    vmProg(12,`🖼 Generating ${scenes.length} AI images in parallel… (Flux may take 30-60s each)`);
+    let imgDone=0;
+    await Promise.all(scenes.map(async(s,i)=>{
+      if(VM.aborted) return;
+      s._img=await vmFetchImage(s.visual_prompt,W,H,i*137+42);
+      imgDone++;
+      if(!VM.aborted) vmProg(12+Math.round(imgDone/scenes.length*27),`🖼 ${imgDone}/${scenes.length} images ready…`);
+    }));
+    if(VM.aborted) return;
+    vmProg(40,`✅ All images loaded — generating voice-overs (${langLabel} · ${voiceName})…`);
+
+    // ── Phase 2b: Generate all voice-overs ────────────────────────────────
+    // Bengali (বাংলা) → Google TTS (bn locale)
+    // Banglish / English → StreamElements voice
     for(let i=0;i<scenes.length;i++){
       if(VM.aborted) return;
-      const pct=10+Math.round(i/scenes.length*38);
-      vmProg(pct,`🖼 Scene ${i+1}/${scenes.length}: fetching image…`);
-      scenes[i]._img=await vmFetchImage(scenes[i].visual_prompt,W,H,i*137+42);
-      vmProg(pct+1,`🎙 Scene ${i+1}/${scenes.length}: generating voice (${voiceName})…`);
-      scenes[i]._audio=await vmFetchAudio(scenes[i].narration,voiceName);
+      vmProg(40+Math.round((i+0.5)/scenes.length*9),`🎙 Voice ${i+1}/${scenes.length}…`);
+      scenes[i]._audio=await vmFetchAudio(scenes[i].narration,voiceName,VM.lang);
     }
     if(VM.aborted) return;
 
@@ -2098,9 +2189,16 @@ Return ONLY a valid JSON array — no markdown, no explanation:
 Script:
 `;
 
-async function vmParseScenes(script){
+async function vmParseScenes(script, detectedLang){
+  // Prepend language context so LLM knows what to do
+  const langCtx=`Detected language: ${
+    detectedLang==='bn'?'Bengali (বাংলা) — keep narration in Bengali, visual_prompt must be English':
+    detectedLang==='banglish'?'Banglish (Bengali in English letters) — keep narration in Banglish, visual_prompt must be English':
+    'English — narration and visual_prompt both in English'
+  }\n\n`;
+
   let raw='';
-  try{ raw=await vmLLMComplete(VM_SCENE_PROMPT+script); }
+  try{ raw=await vmLLMComplete(langCtx+VM_SCENE_PROMPT+script); }
   catch(e){ /* fall through to naive split */ }
 
   if(raw){
@@ -2111,7 +2209,9 @@ async function vmParseScenes(script){
         if(Array.isArray(arr)&&arr.length>=2){
           return arr.map(s=>({
             narration    :(s.narration||'').trim()||script.slice(0,200),
-            visual_prompt:(s.visual_prompt||'').trim()||'cinematic dark background, professional studio',
+            // Safety: if visual_prompt came back in Bengali/Banglish, it's unusable for Flux
+            // Detect and replace with fallback English prompt
+            visual_prompt:vmEnsureEnglishPrompt(s.visual_prompt, s.narration, detectedLang),
             caption      :(s.caption||'').trim(),
           }));
         }
@@ -2119,21 +2219,49 @@ async function vmParseScenes(script){
     }
   }
 
-  // Naive fallback
+  // ── Naive fallback (no LLM) — language-aware image prompts ───────────────
   const paras=script.split(/\n\n+/).filter(Boolean);
-  const chunks=paras.length>1?paras:(script.match(/[^.!?]+[.!?]+/g)||[script]);
+  const sentRx=detectedLang==='bn'?/[^।.!?]+[।.!?]+/g:/[^.!?]+[.!?]+/g;
+  const chunks=paras.length>1?paras:(script.match(sentRx)||[script]);
   const step=Math.max(1,Math.ceil(chunks.length/7));
   const out=[];
   for(let i=0;i<chunks.length;i+=step){
     const narration=chunks.slice(i,i+step).join(' ').trim();
+    let visual;
+    if(detectedLang==='banglish'){
+      // Convert Banglish words to English using dictionary
+      const kw=vmBanglishToVisual(narration);
+      visual=`${kw}, cinematic photorealistic 8K, dramatic lighting, no text, no watermark`;
+    } else if(detectedLang==='bn'){
+      // Bengali Unicode — generate generic but beautiful South Asian scene
+      visual=`Beautiful Bangladesh scenery, cinematic photography, golden hour, 8K photorealistic, dramatic lighting, no text`;
+    } else {
+      // English — use first 80 chars as visual hint
+      visual=`${narration.slice(0,80)}, cinematic, photorealistic, 8K, dramatic lighting, no text`;
+    }
     out.push({
       narration,
-      visual_prompt:`cinematic professional documentary, dramatic lighting, scene ${out.length+1}, 8k`,
-      caption:narration.split(' ').slice(0,5).join(' '),
+      visual_prompt:visual,
+      caption:narration.split(/[\s।]+/).slice(0,5).join(' '),
     });
     if(out.length>=8) break;
   }
   return out;
+}
+
+// Guard: if LLM returned Bengali/Banglish text as visual_prompt, Flux won't understand it
+// Replace with English equivalent using our dictionary
+function vmEnsureEnglishPrompt(visual, narration, lang){
+  if(!visual) return 'cinematic scene, dramatic lighting, photorealistic, 8K';
+  // If visual_prompt contains Bengali Unicode characters → it's wrong, fix it
+  if(/[ঀ-৿]/.test(visual)){
+    return lang==='banglish'
+      ? vmBanglishToVisual(narration||'')+', cinematic, photorealistic, 8K, dramatic lighting, no text'
+      : 'Beautiful Bangladesh landscape, cinematic photography, golden hour, 8K, no text';
+  }
+  // If visual_prompt is very short or generic, enhance it
+  if(visual.length<20) return 'cinematic documentary scene, dramatic lighting, photorealistic, 8K';
+  return visual.trim();
 }
 
 // Non-streaming LLM call
@@ -2197,44 +2325,98 @@ function vmGradientCanvas(W,H){
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Phase 2b — TTS: StreamElements (voice name) → Google TTS → Web Speech
-// voiceName = 'Brian' | 'Joey' | 'Matthew' | 'Russell' | 'Amy' | 'Joanna' | 'Emma' | 'Nicole'
-// Works for English + Banglish (romanized Bengali reads fine with EN voices)
+// Phase 2b — TTS routing based on language
+//   'bn'       → Google Translate TTS with bn locale (handles বাংলা Unicode)
+//   'banglish' → StreamElements (Brian/Amy reads romanized Bengali fine)
+//   'en'       → StreamElements (selected male/female voice)
+//   Fallback chain: StreamElements → Google TTS → Web Speech
 // ═══════════════════════════════════════════════════════════════════════════
-async function vmFetchAudio(text, voiceName){
-  const fallbackLang = VM_VOICE_LANG[voiceName] || 'en-US';
+async function vmFetchAudio(text, voiceName, lang){
+  const wsLang=VM_VOICE_LANG[voiceName]||'en-US';
+  if(!VM.audioCtx) return {duration:Math.max(5,text.split(/\s+/).length/2.5),_webSpeech:text,_lang:wsLang};
 
-  if(voiceName && VM.audioCtx){
-    // ── Primary: StreamElements (free, CORS-OK, returns MP3) ─────────────
+  // ── Bengali (বাংলা) → Google TTS with bn locale ──────────────────────
+  // StreamElements cannot read Bengali Unicode, Google TTS can
+  if(lang==='bn'){
+    try{ return await vmFetchBnTTS(text); }catch{}
+    // If Google TTS failed, fall through to Web Speech with bn-BD
+    const words=text.trim().split(/\s+/).length;
+    return {duration:Math.max(5,words/2.5),_webSpeech:text,_lang:'bn-BD'};
+  }
+
+  // ── Banglish / English → StreamElements (primary) ────────────────────
+  try{
+    const url=`https://api.streamelements.com/kappa/v2/speech?voice=${encodeURIComponent(voiceName)}&text=${encodeURIComponent(text)}`;
+    const resp=await fetch(url,{signal:AbortSignal.timeout(18000)});
+    if(resp.ok){
+      const buf=await resp.arrayBuffer();
+      return await VM.audioCtx.decodeAudioData(buf);
+    }
+  }catch{}
+
+  // ── Fallback: Google Translate TTS (en) ───────────────────────────────
+  try{
+    const langCode=wsLang.split('-')[0];
+    const url=`https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text.slice(0,200))}&tl=${langCode}&client=tw-ob`;
+    const resp=await fetch(url,{signal:AbortSignal.timeout(12000)});
+    if(resp.ok){
+      const buf=await resp.arrayBuffer();
+      return await VM.audioCtx.decodeAudioData(buf);
+    }
+  }catch{}
+
+  // ── Last resort: Web Speech (speakers only, not recorded) ────────────
+  const words=text.trim().split(/\s+/).length;
+  return {duration:Math.max(5,words/2.5),_webSpeech:text,_lang:wsLang};
+}
+
+// ── Bengali TTS via Google Translate — chunked (handles 200-char limit) ───
+async function vmFetchBnTTS(text){
+  const chunks=vmChunkText(text,160);
+  const decoded=[];
+  for(const chunk of chunks){
+    if(!chunk.trim()) continue;
     try{
-      const url=`https://api.streamelements.com/kappa/v2/speech?voice=${encodeURIComponent(voiceName)}&text=${encodeURIComponent(text)}`;
-      const resp=await fetch(url,{signal:AbortSignal.timeout(15000)});
+      const url=`https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(chunk)}&tl=bn&client=tw-ob`;
+      const resp=await fetch(url,{signal:AbortSignal.timeout(12000)});
       if(resp.ok){
         const buf=await resp.arrayBuffer();
-        const decoded=await VM.audioCtx.decodeAudioData(buf);
-        return decoded; // AudioBuffer
-      }
-    }catch{}
-
-    // ── Secondary: Google Translate TTS (unofficial, free) ────────────────
-    // Handles Bengali text better than StreamElements
-    try{
-      const langCode=fallbackLang.split('-')[0]; // 'en', 'bn', etc.
-      const safeText=text.slice(0,200);
-      const url=`https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(safeText)}&tl=${langCode}&client=tw-ob`;
-      const resp=await fetch(url,{signal:AbortSignal.timeout(10000)});
-      if(resp.ok){
-        const buf=await resp.arrayBuffer();
-        const decoded=await VM.audioCtx.decodeAudioData(buf);
-        return decoded;
+        decoded.push(await VM.audioCtx.decodeAudioData(buf));
       }
     }catch{}
   }
+  if(decoded.length===0) throw new Error('Bengali TTS failed');
+  return vmConcatAudioBufs(decoded);
+}
 
-  // ── Fallback: Web Speech API (plays to speakers, NOT recorded) ────────
-  // Still keeps timing correct via word-count estimation
-  const words=text.trim().split(/\s+/).length;
-  return {duration:Math.max(5, words/2.5), _webSpeech:text, _lang:fallbackLang};
+// Split text at word/punctuation boundaries for TTS chunking
+function vmChunkText(text,maxLen){
+  const chunks=[]; let rem=text.trim();
+  const brk=[' ','।',',','.','?','!',';'];
+  while(rem.length>0){
+    if(rem.length<=maxLen){chunks.push(rem);break;}
+    let cut=maxLen;
+    while(cut>maxLen*0.55&&!brk.includes(rem[cut])) cut--;
+    if(cut<=maxLen*0.55) cut=maxLen;
+    chunks.push(rem.slice(0,cut).trim());
+    rem=rem.slice(cut).trim();
+  }
+  return chunks.filter(Boolean);
+}
+
+// Concatenate multiple AudioBuffers into one
+async function vmConcatAudioBufs(bufs){
+  if(bufs.length===1) return bufs[0];
+  const sr=bufs[0].sampleRate;
+  const ch=bufs[0].numberOfChannels;
+  const totalLen=bufs.reduce((s,b)=>s+b.length,0);
+  const out=VM.audioCtx.createBuffer(ch,totalLen,sr);
+  let offset=0;
+  for(const b of bufs){
+    for(let c=0;c<ch;c++) out.getChannelData(c).set(b.getChannelData(c),offset);
+    offset+=b.length;
+  }
+  return out;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2513,21 +2695,25 @@ function vmFillWrapped(ctx,text,cx,cy,maxW,fs){
   lines.forEach((l,i)=>ctx.fillText(l,cx,cy+(i-(lines.length-1)/2)*lh));
 }
 
-// ── Web Speech fallback — tries to match gender via voice name ────────────
+// ── Web Speech fallback — gender + language aware ─────────────────────────
 const VM_FEMALE_VOICES=['Amy','Joanna','Emma','Nicole','Ivy','Salli','Kendra'];
-function vmSpeak(text, lang, voiceName){
+function vmSpeak(text, wsLang, voiceName){
   if(!window.speechSynthesis) return;
   speechSynthesis.cancel();
   const u=new SpeechSynthesisUtterance(text);
-  u.lang=lang||'en-US'; u.rate=1.0; u.pitch=1.0;
+  // Use Bengali locale for Bengali text, selected voice lang for others
+  const effectiveLang=VM.lang==='bn'?'bn-BD':(wsLang||'en-US');
+  u.lang=effectiveLang; u.rate=0.95; u.pitch=1.0;
   const isFemale=VM_FEMALE_VOICES.includes(voiceName);
-  // Pick a browser voice matching language + gender preference
   const available=speechSynthesis.getVoices();
-  const langBase=(lang||'en').slice(0,2);
+  const langBase=effectiveLang.slice(0,2);
   const langVoices=available.filter(v=>v.lang.startsWith(langBase));
-  const match=langVoices.find(v=>isFemale?/female|woman|girl/i.test(v.name):!/female|woman|girl/i.test(v.name))
-    || langVoices[0];
-  if(match) u.voice=match;
+  if(langVoices.length){
+    const match=langVoices.find(v=>isFemale
+      ?/female|woman|girl/i.test(v.name)
+      :!/female|woman|girl/i.test(v.name))||langVoices[0];
+    if(match) u.voice=match;
+  }
   speechSynthesis.speak(u);
 }
 
