@@ -283,6 +283,40 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
 .sm-model-status{font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(16,185,129,.15);color:var(--green)}
 .sm-model-status.fail{background:rgba(239,68,68,.12);color:var(--red)}
 
+/* ── Custom API providers ────────────────────────────────────────────────── */
+.api-list{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.api-card{display:flex;align-items:center;gap:10px;padding:10px 12px;
+  border-radius:10px;background:var(--sb-bg);border:1px solid var(--border);transition:var(--tr)}
+.api-card:hover{border-color:var(--border2)}
+.api-card.active{border-color:var(--cyan);background:rgba(0,212,255,.05)}
+.api-card-info{flex:1;min-width:0;cursor:pointer}
+.api-card-name{font-size:13px;font-weight:700;color:var(--t1)}
+.api-card-model{font-size:11px;color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
+.api-active-badge{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700;
+  background:rgba(16,185,129,.15);color:var(--green);flex-shrink:0}
+.api-del{background:none;border:none;color:var(--t3);cursor:pointer;font-size:15px;
+  padding:3px 7px;border-radius:5px;transition:var(--tr);flex-shrink:0}
+.api-del:hover{color:var(--red);background:rgba(239,68,68,.1)}
+
+/* Add API form */
+#add-api-form{display:none;margin-top:10px;padding:14px;
+  background:var(--sb-bg);border:1px solid var(--border2);border-radius:12px}
+#add-api-form.on{display:block}
+.preset-row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px}
+.preset-btn{padding:4px 10px;border-radius:7px;font-size:11px;font-weight:700;
+  background:var(--surface2);border:1px solid var(--border);color:var(--t2);
+  cursor:pointer;transition:var(--tr)}
+.preset-btn:hover{border-color:var(--purple);color:var(--t1)}
+.add-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.add-grid .sm-field{margin:0}
+.add-grid-full{grid-column:1/-1}
+.type-row{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.type-opt{padding:5px 11px;border-radius:7px;background:var(--surface2);
+  border:1px solid var(--border);cursor:pointer;font-size:11px;font-weight:700;
+  color:var(--t2);transition:var(--tr)}
+.type-opt.sel{border-color:var(--purple);color:var(--purple);background:rgba(139,92,246,.1)}
+.add-form-row{display:flex;gap:8px;margin-top:4px}
+
 /* ── DRAG OVERLAY ────────────────────────────────────────────────────────── */
 #drag-overlay{display:none;position:fixed;inset:0;z-index:500;
   background:rgba(13,13,17,.88);backdrop-filter:blur(4px);
@@ -458,6 +492,34 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
       <div style="font-size:11px;color:var(--t3)">🧠 Conversation memory</div>
       <button class="btn-sm" style="background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.3);color:#ef4444;padding:6px 12px;font-size:11px" onclick="clearMemory();closeSettings()">🗑 Clear Memory</button>
     </div>
+
+    <div class="sm-divider"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="sm-models-lbl" style="margin:0">🔌 API Providers</div>
+      <button class="btn-sm" style="padding:5px 12px;font-size:11px" onclick="toggleAddForm()">+ Add</button>
+    </div>
+    <div id="add-api-form">
+      <div class="preset-row" id="preset-row"></div>
+      <div class="add-grid">
+        <div class="sm-field add-grid-full"><div class="sm-label">Provider Name</div><input class="sm-input" id="api-name" placeholder="e.g. OpenAI, DeepSeek…"/></div>
+        <div class="sm-field"><div class="sm-label">Base URL</div><input class="sm-input" id="api-url" placeholder="https://api.openai.com/v1"/></div>
+        <div class="sm-field"><div class="sm-label">API Key</div><input class="sm-input" id="api-key" type="password" placeholder="sk-…"/></div>
+        <div class="sm-field add-grid-full"><div class="sm-label">Model ID</div><input class="sm-input" id="api-model" placeholder="e.g. gpt-4o-mini"/></div>
+      </div>
+      <div class="sm-label" style="margin-bottom:6px">API Format</div>
+      <div class="type-row">
+        <div class="type-opt sel" data-type="openai" onclick="selectType('openai',this)">OpenAI-compatible</div>
+        <div class="type-opt" data-type="anthropic" onclick="selectType('anthropic',this)">Anthropic</div>
+        <div class="type-opt" data-type="gemini" onclick="selectType('gemini',this)">Gemini</div>
+      </div>
+      <div class="add-form-row">
+        <button class="btn-sm" onclick="cancelAddApi()">Cancel</button>
+        <button class="btn-sm btn-test" onclick="testCustomApi()">🔌 Test</button>
+        <button class="btn-sm btn-save" onclick="saveCustomApi()">✓ Add Provider</button>
+      </div>
+      <div class="sm-status" id="api-test-status"></div>
+    </div>
+    <div class="api-list" id="api-list"></div>
   </div>
 </div>
 
@@ -613,6 +675,7 @@ const S={
   turnIdx:     0,
   curTurn:     0,
   turnRaw:     {},
+  customApis:  [],
 };
 localStorage.setItem('_jv_or', S.orKey);
 
@@ -844,7 +907,7 @@ function finalizeTurn(raw, q, src){
   const timeEl   =document.getElementById(`ait-${id}`);
 
   if(contentEl){ contentEl.innerHTML=md(raw); addCopyBtns(contentEl); }
-  if(srcEl) srcEl.textContent=src==='daemon'?'JARVIS Daemon':(src==='groq'?`${S.activeModel?.name||'Groq'} · Groq ⚡`:`${S.activeModel?.name||'OpenRouter'} · OR`);
+  if(srcEl) srcEl.textContent=src==='daemon'?'JARVIS Daemon':src==='groq'?`${S.activeModel?.name||'Groq'} · Groq ⚡`:src==='openrouter'?`${S.activeModel?.name||'OpenRouter'} · OR`:src;
   if(timeEl) timeEl.textContent=`${((Date.now()-S.startTime)/1000).toFixed(1)}s`;
   if(footerEl) footerEl.style.display='';
 
@@ -918,6 +981,8 @@ async function autoConnect(){
     const active=h?.llm?.active||'local';
     chipOnline(`Daemon · ${active}`); return;
   }
+  const _ac=S.customApis?.find(a=>a.active);
+  if(_ac){ S.provider='custom'; chipOnline(`${_ac.name} · ${_ac.model}`); return; }
   if(S.groqKey){
     S.provider='groq';
     const cached=JSON.parse(localStorage.getItem('_jv_model')||'null');
@@ -970,8 +1035,10 @@ function sendMessage(q){
   ta.value=''; ta.style.height='auto'; sendBtn.disabled=true;
   S.currentLang=detectLang(q); S.startTime=Date.now(); S.streaming=true;
   addTurn(q);
-  if(S.provider==='daemon')    streamDaemon(q);
-  else if(S.provider==='groq') streamGroq(q);
+  const _capi=S.customApis?.find(a=>a.active);
+  if(S.provider==='daemon')             streamDaemon(q);
+  else if(_capi||S.provider==='custom') streamCustomApi(q);
+  else if(S.provider==='groq')          streamGroq(q);
   else if(S.provider==='openrouter'&&S.activeModel&&S.orKey) streamOpenRouter(q);
   else showTurnError('No AI provider connected. Open ⚙ Settings and add an API key.');
 }
@@ -1054,6 +1121,7 @@ function openSettings(){
   $('groq-key-input').value=S.groqKey;
   $('or-key-input').value=S.orKey;
   renderModelList();
+  renderApiList();
   $('settings-modal').classList.add('on');
 }
 function closeSettings(){ $('settings-modal').classList.remove('on'); }
@@ -1085,6 +1153,209 @@ function renderModelList(){
     div.onclick=()=>{ S.activeModel=m; localStorage.setItem('_jv_model',JSON.stringify(m)); S.provider=S.groqKey?'groq':'openrouter'; chipOnline(`${m.name} · free`); renderModelList(); };
     list.appendChild(div);
   });
+}
+
+/* ── Custom API providers ────────────────────────────────────────────────── */
+const APIS_KEY='_jv_apis';
+let _selType='openai';
+const PRESETS=[
+  {name:'OpenAI',     url:'https://api.openai.com/v1',                        model:'gpt-4o-mini',                                          type:'openai',   note:''},
+  {name:'DeepSeek',   url:'https://api.deepseek.com/v1',                      model:'deepseek-chat',                                        type:'openai',   note:'$0.07/1M'},
+  {name:'Together',   url:'https://api.together.xyz/v1',                      model:'meta-llama/Llama-3-70b-chat-hf',                       type:'openai',   note:'Free $25'},
+  {name:'Fireworks',  url:'https://api.fireworks.ai/inference/v1',            model:'accounts/fireworks/models/llama-v3p1-70b-instruct',    type:'openai',   note:''},
+  {name:'Mistral',    url:'https://api.mistral.ai/v1',                        model:'mistral-small-latest',                                 type:'openai',   note:''},
+  {name:'Perplexity', url:'https://api.perplexity.ai',                        model:'sonar',                                                type:'openai',   note:'Web search'},
+  {name:'Anthropic',  url:'https://api.anthropic.com',                        model:'claude-haiku-4-5-20251001',                            type:'anthropic',note:''},
+  {name:'Gemini',     url:'https://generativelanguage.googleapis.com/v1beta', model:'gemini-2.0-flash',                                    type:'gemini',   note:'Free'},
+  {name:'Ollama',     url:'http://localhost:11434/v1',                        model:'llama3.3:70b',                                         type:'openai',   note:'Local'},
+  {name:'Custom',     url:'',                                                 model:'',                                                     type:'openai',   note:''},
+];
+function loadCustomApis(){try{const d=JSON.parse(localStorage.getItem(APIS_KEY)||'[]');return Array.isArray(d)?d:[];}catch{return[];}}
+function saveCustomApis(){localStorage.setItem(APIS_KEY,JSON.stringify(S.customApis));}
+
+function renderPresets(){
+  const row=$('preset-row');if(!row)return;row.innerHTML='';
+  PRESETS.forEach(p=>{
+    const b=document.createElement('button');b.className='preset-btn';
+    b.textContent=p.name+(p.note?' · '+p.note:'');
+    b.onclick=()=>{
+      $('api-name').value=p.name;$('api-url').value=p.url;$('api-model').value=p.model;
+      const el=document.querySelector(`.type-opt[data-type="${p.type}"]`);
+      selectType(p.type,el);
+    };
+    row.appendChild(b);
+  });
+}
+
+function toggleAddForm(){
+  const f=$('add-api-form');f.classList.toggle('on');
+  if(f.classList.contains('on')){
+    renderPresets();
+    ['api-name','api-url','api-key','api-model'].forEach(id=>{const el=$(id);if(el)el.value='';});
+    const st=$('api-test-status');if(st)st.textContent='';
+    _selType='openai';
+    document.querySelectorAll('.type-opt').forEach(o=>o.classList.toggle('sel',o.dataset.type==='openai'));
+  }
+}
+
+function cancelAddApi(){$('add-api-form').classList.remove('on');}
+
+function selectType(type,el){
+  _selType=type;
+  document.querySelectorAll('.type-opt').forEach(o=>o.classList.remove('sel'));
+  if(el)el.classList.add('sel');
+}
+
+async function testCustomApi(){
+  const url=($('api-url')?.value||'').trim();
+  const key=($('api-key')?.value||'').trim();
+  const model=($('api-model')?.value||'').trim();
+  const st=$('api-test-status');
+  if(!url||!model){st.textContent='Fill URL and Model fields';st.className='sm-status err';return;}
+  st.textContent='Testing…';st.className='sm-status';
+  try{
+    let resp;
+    if(_selType==='anthropic'){
+      resp=await fetch(`${url}/v1/messages`,{method:'POST',headers:{'x-api-key':key,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model,max_tokens:1,messages:[{role:'user',content:'hi'}]}),signal:AbortSignal.timeout(8000)});
+    }else if(_selType==='gemini'){
+      resp=await fetch(`${url}/models/${model}:generateContent?key=${key}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:'hi'}]}],generationConfig:{maxOutputTokens:1}}),signal:AbortSignal.timeout(8000)});
+    }else{
+      resp=await fetch(`${url}/chat/completions`,{method:'POST',headers:{'Authorization':`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify({model,messages:[{role:'user',content:'hi'}],max_tokens:1,stream:false}),signal:AbortSignal.timeout(8000)});
+    }
+    if(resp.ok||resp.status===400||resp.status===422){st.textContent='✓ Connected!';st.className='sm-status ok';}
+    else{const e=await resp.json().catch(()=>({}));st.textContent=`✗ Error ${resp.status}: ${e?.error?.message||resp.statusText}`;st.className='sm-status err';}
+  }catch(e){st.textContent=`✗ ${e.message}`;st.className='sm-status err';}
+}
+
+function saveCustomApi(){
+  const name=($('api-name')?.value||'').trim();
+  const url=($('api-url')?.value||'').trim();
+  const key=($('api-key')?.value||'').trim();
+  const model=($('api-model')?.value||'').trim();
+  const st=$('api-test-status');
+  if(!name||!url||!model){st.textContent='Fill Name, URL, and Model';st.className='sm-status err';return;}
+  const firstActive=!S.customApis.some(a=>a.active);
+  const api={id:Date.now(),name,url,key,model,type:_selType,active:firstActive};
+  S.customApis.push(api);
+  saveCustomApis();
+  $('add-api-form').classList.remove('on');
+  renderApiList();
+  if(firstActive){S.provider='custom';chipOnline(`${api.name} · ${api.model}`);}
+  toast(`Added ${name}`,'ok');
+}
+
+function deleteCustomApi(id){
+  const wasActive=S.customApis.find(a=>a.id===id)?.active;
+  S.customApis=S.customApis.filter(a=>a.id!==id);
+  if(wasActive&&S.customApis.length){
+    S.customApis[0].active=true;S.provider='custom';
+    chipOnline(`${S.customApis[0].name} · ${S.customApis[0].model}`);
+  }else if(!S.customApis.length){
+    S.provider=S.groqKey?'groq':(S.orKey?'openrouter':'demo');
+    autoConnect();
+  }
+  saveCustomApis();renderApiList();
+}
+
+function setActiveApi(id){
+  S.customApis.forEach(a=>a.active=a.id===id);
+  saveCustomApis();
+  const api=S.customApis.find(a=>a.id===id);
+  if(api){S.provider='custom';chipOnline(`${api.name} · ${api.model}`);}
+  renderApiList();
+}
+
+function renderApiList(){
+  const list=$('api-list');if(!list)return;
+  list.innerHTML='';
+  if(!S.customApis.length){
+    list.innerHTML='<div style="font-size:12px;color:var(--t3);text-align:center;padding:12px 0">No custom APIs yet — click + Add to add one.</div>';
+    return;
+  }
+  S.customApis.forEach(api=>{
+    const card=document.createElement('div');card.className='api-card'+(api.active?' active':'');
+    card.innerHTML=`<div class="api-card-info" onclick="setActiveApi(${api.id})"><div class="api-card-name">${esc(api.name)}</div><div class="api-card-model">${esc(api.model)} · ${esc(api.url)}</div></div>${api.active?'<span class="api-active-badge">ACTIVE</span>':''}<button class="api-del" title="Remove" onclick="event.stopPropagation();deleteCustomApi(${api.id})">🗑</button>`;
+    list.appendChild(card);
+  });
+}
+
+/* ── Custom API streaming ─────────────────────────────────────────────────── */
+async function streamCustomApi(q){
+  const api=S.customApis?.find(a=>a.active);
+  if(!api){showTurnError('No custom API selected. Open ⚙ Settings and add one.');return;}
+  if(api.type==='anthropic') return streamAnthropic(q,api);
+  if(api.type==='gemini')    return streamGeminiCustom(q,api);
+  return streamOpenAICompat(q,api);
+}
+
+async function streamOpenAICompat(q,api){
+  const qType=classifyQuery(q),qParams=getQueryParams(qType);
+  const{msgs}=buildMessagesWithFiles(q,getApiHistory());
+  const messages=[{role:'system',content:buildSystemPrompt(qType,S.currentLang)},...msgs];
+  try{
+    const resp=await fetch(`${api.url}/chat/completions`,{method:'POST',
+      headers:{'Authorization':`Bearer ${api.key}`,'Content-Type':'application/json'},
+      body:JSON.stringify({model:api.model,messages,stream:true,max_tokens:qParams.max_tokens,temperature:qParams.temperature})});
+    if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e?.error?.message||`HTTP ${resp.status}`);}
+    chipOnline(`${api.name} · ${api.model}`);
+    const reader=resp.body.getReader();const dec=new TextDecoder();let raw='';
+    while(true){
+      const{done,value}=await reader.read();if(done)break;
+      for(const line of dec.decode(value,{stream:true}).split('\n')){
+        if(!line.startsWith('data: '))continue;
+        const data=line.slice(6).trim();if(data==='[DONE]'||!data)continue;
+        try{const delta=JSON.parse(data).choices?.[0]?.delta?.content||'';if(delta){raw+=delta;renderStreaming(raw);}}catch{}
+      }
+    }
+    finalizeTurn(raw,q,api.name);
+  }catch(e){showTurnError(`${api.name} error: ${e.message}`);}
+}
+
+async function streamAnthropic(q,api){
+  const qType=classifyQuery(q),qParams=getQueryParams(qType);
+  const{msgs}=buildMessagesWithFiles(q,getApiHistory());
+  const system=buildSystemPrompt(qType,S.currentLang);
+  try{
+    const resp=await fetch(`${api.url}/v1/messages`,{method:'POST',
+      headers:{'x-api-key':api.key,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:api.model,system,messages:msgs,stream:true,max_tokens:qParams.max_tokens})});
+    if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e?.error?.message||`HTTP ${resp.status}`);}
+    chipOnline(`${api.name} · ${api.model}`);
+    const reader=resp.body.getReader();const dec=new TextDecoder();let raw='';
+    while(true){
+      const{done,value}=await reader.read();if(done)break;
+      for(const line of dec.decode(value,{stream:true}).split('\n')){
+        if(!line.startsWith('data: '))continue;
+        const data=line.slice(6).trim();if(!data)continue;
+        try{const p=JSON.parse(data);if(p.type==='content_block_delta'&&p.delta?.type==='text_delta'){raw+=p.delta.text;renderStreaming(raw);}}catch{}
+      }
+    }
+    finalizeTurn(raw,q,api.name);
+  }catch(e){showTurnError(`${api.name} error: ${e.message}`);}
+}
+
+async function streamGeminiCustom(q,api){
+  const qType=classifyQuery(q),qParams=getQueryParams(qType);
+  const{msgs}=buildMessagesWithFiles(q,getApiHistory());
+  const system=buildSystemPrompt(qType,S.currentLang);
+  const contents=msgs.map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:typeof m.content==='string'?m.content:'[file]'}]}));
+  try{
+    const resp=await fetch(`${api.url}/models/${api.model}:streamGenerateContent?key=${api.key}&alt=sse`,{method:'POST',
+      headers:{'content-type':'application/json'},
+      body:JSON.stringify({system_instruction:{parts:[{text:system}]},contents,generationConfig:{maxOutputTokens:qParams.max_tokens,temperature:qParams.temperature}})});
+    if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e?.error?.message||`HTTP ${resp.status}`);}
+    chipOnline(`${api.name} · ${api.model}`);
+    const reader=resp.body.getReader();const dec=new TextDecoder();let raw='';
+    while(true){
+      const{done,value}=await reader.read();if(done)break;
+      for(const line of dec.decode(value,{stream:true}).split('\n')){
+        if(!line.startsWith('data: '))continue;
+        const data=line.slice(6).trim();if(!data)continue;
+        try{const p=JSON.parse(data);const t=p.candidates?.[0]?.content?.parts?.[0]?.text||'';if(t){raw+=t;renderStreaming(raw);}}catch{}
+      }
+    }
+    finalizeTurn(raw,q,api.name);
+  }catch(e){showTurnError(`${api.name} error: ${e.message}`);}
 }
 
 /* ── Sidebar toggle ──────────────────────────────────────────────────────── */
@@ -1167,6 +1438,7 @@ function newChat(){
 /* ── Boot ────────────────────────────────────────────────────────────────── */
 (async()=>{
   S.history=loadMemory();
+  S.customApis=loadCustomApis();
   updateMemBadge();
   renderThread();
   updateSidebar();
