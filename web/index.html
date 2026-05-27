@@ -308,6 +308,59 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
 .me-role.user{color:var(--blue)}.me-role.assistant{color:var(--cyan)}
 .me-txt{font-size:11px;color:var(--t2);line-height:1.45}
 
+/* ── File upload ───────────────────────────────────────────────────────── */
+.btn-attach{width:42px;height:42px;border-radius:var(--r);
+  background:var(--bg2);border:1px solid var(--border2);
+  color:var(--t2);font-size:18px;cursor:pointer;transition:var(--tr);
+  display:grid;place-items:center;flex-shrink:0}
+.btn-attach:hover{border-color:var(--cyan);color:var(--cyan)}
+.btn-attach.has-file{border-color:var(--cyan);color:var(--cyan);
+  background:rgba(0,212,255,.1)}
+.btn-attach-sm{width:32px;height:32px;border-radius:7px;font-size:15px;
+  background:var(--bg2);border:1px solid var(--border2);
+  color:var(--t2);cursor:pointer;transition:var(--tr);
+  display:grid;place-items:center;flex-shrink:0}
+.btn-attach-sm:hover{border-color:var(--cyan);color:var(--cyan)}
+.btn-attach-sm.has-file{border-color:var(--cyan);color:var(--cyan)}
+
+/* file preview strip */
+.file-strip{display:none;flex-wrap:wrap;gap:8px;
+  width:100%;max-width:660px;margin-top:12px}
+.file-strip.on{display:flex}
+.fchip-file{display:flex;align-items:center;gap:7px;
+  padding:6px 10px 6px 8px;border-radius:var(--rs);
+  background:var(--bg2);border:1px solid var(--border2);
+  font-size:12px;color:var(--t2);max-width:200px}
+.fchip-file .ficon{font-size:16px;flex-shrink:0}
+.fchip-file .fname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.fchip-file .fsize{font-size:10px;color:var(--t3);white-space:nowrap}
+.fchip-file .fclose{margin-left:4px;cursor:pointer;color:var(--t3);
+  font-size:14px;flex-shrink:0;line-height:1}
+.fchip-file .fclose:hover{color:var(--red)}
+.fchip-file.image-chip{border-color:rgba(0,212,255,.25);background:rgba(0,212,255,.05)}
+.img-thumb{width:36px;height:36px;object-fit:cover;border-radius:5px;flex-shrink:0}
+.vision-badge{display:inline-flex;align-items:center;gap:4px;
+  font-size:10px;color:var(--purple);background:rgba(139,92,246,.1);
+  border:1px solid rgba(139,92,246,.2);border-radius:8px;
+  padding:2px 7px;margin-left:4px}
+
+/* results file strip (above follow-up bar) */
+.fbar-files{display:none;flex-wrap:wrap;gap:7px;margin-bottom:8px}
+.fbar-files.on{display:flex}
+
+/* drag & drop overlay */
+#drag-overlay{display:none;position:fixed;inset:0;z-index:500;
+  background:rgba(6,8,15,.88);backdrop-filter:blur(8px);
+  align-items:center;justify-content:center;flex-direction:column;gap:16px}
+#drag-overlay.on{display:flex}
+.drag-box{border:2px dashed var(--cyan);border-radius:24px;
+  padding:60px 80px;text-align:center;
+  animation:drag-pulse 1.5s ease-in-out infinite alternate}
+@keyframes drag-pulse{from{box-shadow:0 0 20px rgba(0,212,255,.2)}to{box-shadow:0 0 50px rgba(0,212,255,.5)}}
+.drag-icon{font-size:56px;margin-bottom:12px}
+.drag-title{font-size:22px;font-weight:700;color:var(--cyan);margin-bottom:6px}
+.drag-sub{font-size:13px;color:var(--t3)}
+
 /* ── Error / toast / offline ───────────────────────────────────────────── */
 .ebanner{display:none;align-items:center;gap:9px;padding:10px 14px;
   border-radius:var(--rs);margin-bottom:14px;
@@ -387,7 +440,21 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
 <div class="orb orb1"></div>
 <div class="orb orb2"></div>
 <div id="toasts"></div>
-<div id="offline">⚠ Daemon offline — using OpenRouter free API directly</div>
+<div id="offline">⚠ No AI provider connected — open ⚙ to add a key</div>
+
+<!-- hidden file input -->
+<input type="file" id="file-input" multiple
+  accept="image/*,.pdf,.txt,.md,.py,.js,.ts,.jsx,.tsx,.html,.css,.json,.yaml,.yml,.toml,.sh,.bash,.zsh,.csv,.xml,.sql,.rs,.go,.java,.c,.cpp,.h,.hpp,.rb,.php,.swift,.kt,.dart,.r,.m"
+  style="display:none"/>
+
+<!-- drag & drop overlay -->
+<div id="drag-overlay">
+  <div class="drag-box">
+    <div class="drag-icon">📂</div>
+    <div class="drag-title">Drop anything here</div>
+    <div class="drag-sub">Images · Code · PDF · CSV · Any text file</div>
+  </div>
+</div>
 
 <!-- ══ Navbar ═══════════════════════════════════════════════════════════ -->
 <nav id="nav">
@@ -425,10 +492,13 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
     <span class="si">🔍</span>
     <input id="home-inp" type="text" placeholder="What do you need? JARVIS will handle it." autocomplete="off"/>
     <div class="sg">
-      <button class="btn-search" id="home-btn">Search</button>
+      <button class="btn-attach" id="home-attach" title="Attach file / image">📎</button>
+      <button class="btn-search" id="home-btn">Ask</button>
       <button class="btn-mic" id="home-mic">🎤</button>
     </div>
   </div>
+  <!-- file preview strip (home) -->
+  <div class="file-strip" id="home-file-strip"></div>
 
   <div class="chips">
     <span class="chip" onclick="qs(this)">Write me a Python script</span>
@@ -515,7 +585,9 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
 
   <!-- follow-up bar -->
   <div class="fbar">
+    <div class="fbar-files" id="fbar-files"></div>
     <div class="fbar-inner">
+      <button class="btn-attach-sm" id="f-attach" title="Attach file">📎</button>
       <input id="f-inp" type="text" placeholder="Continue — JARVIS is listening…" autocomplete="off"/>
       <button class="btn-mic" id="f-mic" style="width:32px;height:32px;font-size:15px;border-radius:7px;flex-shrink:0">🎤</button>
       <button class="btn-send" id="f-send" title="Send">➤</button>
@@ -599,6 +671,202 @@ const _DEFAULT_GROQ_KEY = 'GROQ_KEY_REMOVED';
 
 const DAEMON_URL = 'http://127.0.0.1:8787';
 const WS_URL     = 'ws://127.0.0.1:8787/ws/chat';
+
+/* ── File upload state & helpers ─────────────────────────────────────────── */
+const FILES = [];   // [{name, type, size, content, base64, isImage, url}]
+
+const ACCEPT_TEXT = new Set([
+  'text/plain','text/markdown','text/html','text/css','text/javascript',
+  'text/csv','text/xml','application/json','application/yaml',
+  'application/toml','application/xml','application/sql',
+]);
+const CODE_EXTS = new Set([
+  'py','js','ts','jsx','tsx','html','css','json','yaml','yml','toml',
+  'sh','bash','zsh','md','txt','csv','xml','sql','rs','go','java',
+  'c','cpp','h','hpp','rb','php','swift','kt','dart','r','m','env',
+  'gitignore','dockerfile','nix','conf','ini','cfg',
+]);
+
+function fileIcon(f){
+  if(f.isImage) return '🖼';
+  const ext=(f.name.split('.').pop()||'').toLowerCase();
+  if(['py'].includes(ext)) return '🐍';
+  if(['js','ts','jsx','tsx'].includes(ext)) return '⚡';
+  if(['html','css'].includes(ext)) return '🌐';
+  if(['json','yaml','yml','toml'].includes(ext)) return '⚙';
+  if(['sh','bash','zsh'].includes(ext)) return '💻';
+  if(['pdf'].includes(ext)) return '📄';
+  if(['csv'].includes(ext)) return '📊';
+  if(['md'].includes(ext)) return '📝';
+  if(['nix'].includes(ext)) return '❄';
+  if(['sql'].includes(ext)) return '🗄';
+  return '📎';
+}
+
+function fmtSize(bytes){
+  if(bytes<1024) return bytes+'B';
+  if(bytes<1048576) return (bytes/1024).toFixed(1)+'KB';
+  return (bytes/1048576).toFixed(1)+'MB';
+}
+
+async function readAsBase64(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=e=>res(e.target.result.split(',')[1]);
+    r.onerror=rej; r.readAsDataURL(file);
+  });
+}
+async function readAsText(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=e=>res(e.target.result);
+    r.onerror=rej; r.readAsText(file);
+  });
+}
+async function readAsDataURL(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=e=>res(e.target.result);
+    r.onerror=rej; r.readAsDataURL(file);
+  });
+}
+
+async function processFile(file){
+  const ext=(file.name.split('.').pop()||'').toLowerCase();
+  const isImage = file.type.startsWith('image/');
+  const isText  = ACCEPT_TEXT.has(file.type) || CODE_EXTS.has(ext);
+  const isPDF   = file.type==='application/pdf' || ext==='pdf';
+
+  const entry = { name:file.name, type:file.type, size:file.size, isImage, ext };
+
+  if(isImage){
+    entry.base64 = await readAsBase64(file);
+    entry.url    = await readAsDataURL(file);   // for thumbnail
+  } else if(isPDF){
+    // Basic: extract raw text via FileReader (won't parse properly but gets some text)
+    try{ entry.content = await readAsText(file); }catch{ entry.content='[PDF — binary content]'; }
+    entry.isPDF = true;
+  } else if(isText){
+    entry.content = await readAsText(file);
+  } else {
+    // Try reading as text anyway
+    try{ entry.content = await readAsText(file); }catch{ entry.content=`[Binary file: ${file.name}]`; }
+  }
+
+  return entry;
+}
+
+async function handleFiles(fileList){
+  const newFiles = Array.from(fileList).slice(0, 8 - FILES.length); // max 8 total
+  if(!newFiles.length) return;
+  toast(`Reading ${newFiles.length} file(s)…`);
+  for(const f of newFiles){
+    try{
+      const entry = await processFile(f);
+      FILES.push(entry);
+    }catch(e){ toast(`Failed: ${f.name}`, 'err'); }
+  }
+  renderFilePreviews();
+  toast(`${FILES.length} file(s) attached`, 'ok');
+}
+
+function removeFile(idx){
+  FILES.splice(idx,1);
+  renderFilePreviews();
+}
+
+function clearFiles(){
+  FILES.length=0;
+  renderFilePreviews();
+}
+
+function renderFilePreviews(){
+  const hasFiles = FILES.length>0;
+  const hasImages = FILES.some(f=>f.isImage);
+
+  // Home strip
+  const homeStrip=$('home-file-strip');
+  // Results fbar strip
+  const fbarFiles=$('fbar-files');
+
+  [homeStrip, fbarFiles].forEach(el=>{
+    if(!el) return;
+    el.innerHTML='';
+    if(hasImages){
+      const badge=document.createElement('div');
+      badge.className='vision-badge';
+      badge.innerHTML='👁 Vision: Llama 4 Scout';
+      el.appendChild(badge);
+    }
+    FILES.forEach((f,i)=>{
+      const chip=document.createElement('div');
+      chip.className=`fchip-file${f.isImage?' image-chip':''}`;
+      if(f.isImage){
+        chip.innerHTML=`<img class="img-thumb" src="${f.url}" alt="${f.name}">
+          <span class="fname">${f.name}</span>
+          <span class="fsize">${fmtSize(f.size)}</span>
+          <span class="fclose" onclick="removeFile(${i})">×</span>`;
+      } else {
+        chip.innerHTML=`<span class="ficon">${fileIcon(f)}</span>
+          <span class="fname">${f.name}</span>
+          <span class="fsize">${fmtSize(f.size)}</span>
+          <span class="fclose" onclick="removeFile(${i})">×</span>`;
+      }
+      el.appendChild(chip);
+    });
+    el.classList.toggle('on', hasFiles);
+  });
+
+  // Update attach button styles
+  [$('home-attach'),$('f-attach')].forEach(b=>{
+    if(!b) return;
+    b.classList.toggle('has-file', hasFiles);
+    b.textContent = hasFiles ? `📎 ${FILES.length}` : '📎';
+  });
+}
+
+/* Build messages array with files injected */
+function buildMessagesWithFiles(query, history=[]){
+  const hasImages = FILES.some(f=>f.isImage);
+  const images    = FILES.filter(f=>f.isImage);
+  const texts     = FILES.filter(f=>!f.isImage && f.content);
+
+  let textContext='';
+  if(texts.length){
+    textContext='\n\n'+texts.map(f=>{
+      const lines=f.content.split('\n').length;
+      const lang=f.ext||'';
+      return `**Attached file: \`${f.name}\`** (${lines} lines)\n\`\`\`${lang}\n${f.content.slice(0,12000)}${f.content.length>12000?'\n…(truncated)':''}\n\`\`\``;
+    }).join('\n\n');
+  }
+
+  const userText=(query||'Analyze the attached file(s) and help me with them.')+textContext;
+
+  // Build history messages
+  const msgs=[...history];
+
+  if(hasImages){
+    // Vision: multimodal content array
+    const content=[
+      ...images.map(f=>({type:'image_url',image_url:{url:`data:${f.type};base64,${f.base64}`}})),
+      {type:'text',text:userText},
+    ];
+    msgs.push({role:'user',content});
+  } else {
+    msgs.push({role:'user',content:userText});
+  }
+  return {msgs, hasImages};
+}
+
+/* Pick best Groq model for the task */
+function getBestGroqModel(hasImages){
+  if(hasImages){
+    // Llama 4 Scout has vision
+    const scout=GROQ_MODELS.find(m=>m.id.includes('llama-4-scout'));
+    if(scout) return scout;
+  }
+  return GROQ_MODELS[0]; // default: fastest
+}
 
 /* ── App state ───────────────────────────────────────────────────────────── */
 const S = {
@@ -876,12 +1144,9 @@ function streamDaemon(q){
 
 /* ── Groq stream — ultra-fast (400+ t/s) ────────────────────────────────── */
 async function streamGroq(q, modelIdx=0){
-  const model = GROQ_MODELS[modelIdx] || GROQ_MODELS[0];
-  const messages=[
-    {role:'system', content: buildSystemPrompt()},
-    ...S.history,
-    {role:'user', content:q},
-  ];
+  const {msgs, hasImages} = buildMessagesWithFiles(q, S.history);
+  const model = modelIdx===0 ? getBestGroqModel(hasImages) : (GROQ_MODELS[modelIdx]||GROQ_MODELS[0]);
+  const messages=[{role:'system', content: buildSystemPrompt()}, ...msgs];
   try{
     const resp = await fetch(`${GROQ_BASE}/chat/completions`,{
       method:'POST',
@@ -928,11 +1193,8 @@ async function streamOpenRouter(q, retried=false){
   if(!S.activeModel){ showDemo(q); return; }
 
   const system = buildSystemPrompt();
-  const messages=[
-    {role:'system',content:system},
-    ...S.history,
-    {role:'user',content:q},
-  ];
+  const {msgs} = buildMessagesWithFiles(q, S.history);
+  const messages=[{role:'system',content:system}, ...msgs];
 
   try{
     const resp=await fetch(`${OR_BASE}/chat/completions`,{
@@ -1060,7 +1322,13 @@ function finalize(raw, q, src){
   amodel.textContent=src==='daemon'?'JARVIS Daemon':S.activeModel?.name||'AI';
   sind.classList.remove('on');
   updateBadge(src, S.activeModel?.name);
-  S.history.push({role:'user',content:q},{role:'assistant',content:raw});
+  // Store simplified history (text only — base64 images not re-sent)
+  const histContent = FILES.length
+    ? q + (FILES.some(f=>f.isImage) ? ` [+${FILES.filter(f=>f.isImage).length} image(s)]` : '')
+      + (FILES.filter(f=>!f.isImage).length ? ` [+${FILES.filter(f=>!f.isImage).length} file(s)]` : '')
+    : q;
+  S.history.push({role:'user',content:histContent},{role:'assistant',content:raw});
+  clearFiles();   // clear attachments after send
   generateFups(q,raw); renderHistory(); loadMem();
 }
 
@@ -1199,6 +1467,25 @@ setupMic(homeInp,$('home-mic'));
 setupMic(fInp,$('f-mic'));
 $('nav-mic').onclick=()=>{ if(S.mode==='results') $('f-mic').click(); else $('home-mic').click(); };
 
+/* ── File input wiring ───────────────────────────────────────────────────── */
+const fileInput = $('file-input');
+fileInput.addEventListener('change', ()=>{ handleFiles(fileInput.files); fileInput.value=''; });
+
+function openFilePicker(){ fileInput.click(); }
+$('home-attach').addEventListener('click', openFilePicker);
+$('f-attach').addEventListener('click', openFilePicker);
+
+/* ── Drag & drop ─────────────────────────────────────────────────────────── */
+const dragOverlay = $('drag-overlay');
+let dragCounter = 0;
+document.addEventListener('dragenter', e=>{ e.preventDefault(); dragCounter++; dragOverlay.classList.add('on'); });
+document.addEventListener('dragleave', e=>{ dragCounter--; if(dragCounter<=0){ dragCounter=0; dragOverlay.classList.remove('on'); } });
+document.addEventListener('dragover',  e=>{ e.preventDefault(); });
+document.addEventListener('drop', e=>{
+  e.preventDefault(); dragCounter=0; dragOverlay.classList.remove('on');
+  if(e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+});
+
 /* ── Key bindings ────────────────────────────────────────────────────────── */
 homeInp.onkeydown = e=>{ if(e.key==='Enter') doSearch(homeInp.value); };
 navInp .onkeydown = e=>{ if(e.key==='Enter') doSearch(navInp.value);  };
@@ -1296,6 +1583,15 @@ function setBar(id,pct){
 
 /* ── URL param direct search ─────────────────────────────────────────────── */
 (()=>{const q=new URLSearchParams(location.search).get('q'); if(q) setTimeout(()=>doSearch(q),600);})();
+
+/* ── Paste image from clipboard (Ctrl+V) ────────────────────────────────── */
+document.addEventListener('paste', e=>{
+  const items=[...e.clipboardData.items].filter(i=>i.kind==='file');
+  if(!items.length) return;
+  e.preventDefault();
+  handleFiles(items.map(i=>i.getAsFile()));
+  toast('📋 Pasted from clipboard');
+});
 
 /* ── Boot ────────────────────────────────────────────────────────────────── */
 (async()=>{
