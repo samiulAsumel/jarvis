@@ -1144,7 +1144,7 @@ function streamDaemon(q){
   if(S.ws){try{S.ws.close();}catch{}}
   const ws=new WebSocket(WS_URL); S.ws=ws;
   let raw='';
-  ws.onopen=()=>ws.send(JSON.stringify({query:q,history:S.history}));
+  ws.onopen=()=>ws.send(JSON.stringify({query:q,history:getApiHistory()}));
   ws.onmessage=(e)=>{
     const d=JSON.parse(e.data);
     if(d.type==='chunk'){ raw+=d.content; renderStreaming(raw); }
@@ -1157,7 +1157,7 @@ function streamDaemon(q){
 
 /* ── Groq stream — ultra-fast (400+ t/s) ────────────────────────────────── */
 async function streamGroq(q, modelIdx=0){
-  const {msgs, hasImages} = buildMessagesWithFiles(q, S.history);
+  const {msgs, hasImages} = buildMessagesWithFiles(q, getApiHistory());
   const qType   = classifyQuery(q);
   const qParams = getQueryParams(qType);
   const model   = modelIdx===0 ? getBestGroqModel(hasImages, qType) : (GROQ_MODELS[modelIdx]||GROQ_MODELS[0]);
@@ -1219,7 +1219,7 @@ async function streamOpenRouter(q, retried=false){
 
   const qType  = classifyQuery(q);
   const system = buildSystemPrompt(qType, S.currentLang);
-  const {msgs} = buildMessagesWithFiles(q, S.history);
+  const {msgs} = buildMessagesWithFiles(q, getApiHistory());
   const messages=[{role:'system',content:system}, ...msgs];
 
   try{
@@ -1311,8 +1311,26 @@ const LANG_INSTRUCTIONS = {
 
 /* ── Persistent memory ───────────────────────────────────────────────────── */
 const MEM_KEY      = '_jv_hist';
-const MEM_MAX_TURNS= 200;      // 100 exchanges remembered across sessions
+const MEM_MAX_TURNS= 200;      // 100 exchanges stored locally (display + localStorage)
 const MEM_MAX_CHARS= 30000;    // trim long messages to avoid huge localStorage
+
+/* ── API context window (separate from stored memory) ────────────────────── */
+// Only last N messages sent to API — keeps follow-ups as fast as 1st message
+// Full history still stored locally for display and persistence
+const API_CTX_TURNS  = 12;    // last 6 exchanges sent to API (12 messages)
+const API_MSG_TRIM   = 6000;  // trim old messages to 6000 chars before sending
+
+function getApiHistory(){
+  // Take last API_CTX_TURNS messages, trim each to API_MSG_TRIM chars
+  return S.history.slice(-API_CTX_TURNS).map((m, i, arr) => {
+    // Always send the last user message intact (handled by buildMessagesWithFiles)
+    const isOld = i < arr.length - 2;
+    if(isOld && typeof m.content === 'string' && m.content.length > API_MSG_TRIM){
+      return { role: m.role, content: m.content.slice(0, API_MSG_TRIM) + '\n…[trimmed for speed]' };
+    }
+    return m;
+  }).filter(m => typeof m.content === 'string'); // drop image turns from history
+}
 
 function saveMemory(){
   const slim = S.history.slice(-MEM_MAX_TURNS).map(m=>({
