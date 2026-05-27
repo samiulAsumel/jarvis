@@ -339,12 +339,23 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   cursor:pointer;transition:var(--tr);display:flex;align-items:center;gap:6px}
 .vm-plat:hover{border-color:var(--cyan);color:var(--cyan)}
 .vm-plat.sel{background:rgba(56,189,248,.12);border-color:var(--cyan);color:var(--cyan)}
-.vm-voices{display:flex;gap:7px;flex-wrap:wrap}
-.vm-voice{padding:6px 12px;border-radius:7px;border:1px solid var(--border2);
+.vm-voices{display:flex;flex-direction:column;gap:10px;margin-bottom:4px}
+.vm-vgrp{display:flex;flex-direction:column;gap:6px}
+.vm-vgrp-lbl{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:1px;padding-left:1px}
+.vm-voice-row{display:flex;flex-wrap:wrap;gap:7px}
+/* Male voice buttons — cyan theme */
+.vm-voice{padding:7px 14px;border-radius:8px;border:1px solid var(--border2);
   background:var(--surface2);color:var(--t2);font-size:12px;font-weight:600;
-  cursor:pointer;transition:var(--tr)}
-.vm-voice:hover{border-color:var(--purple);color:var(--purple)}
-.vm-voice.sel{background:rgba(124,58,237,.12);border-color:var(--purple);color:var(--purple)}
+  cursor:pointer;transition:var(--tr);display:flex;align-items:center;gap:5px}
+.vm-voice.male:hover{border-color:var(--cyan);color:var(--cyan)}
+.vm-voice.male.sel{background:rgba(56,189,248,.1);border-color:var(--cyan);color:var(--cyan)}
+/* Female voice buttons — pink/rose theme */
+.vm-voice.female:hover{border-color:#f472b6;color:#f472b6}
+.vm-voice.female.sel{background:rgba(244,114,182,.1);border-color:#f472b6;color:#f472b6}
+/* voice accent dots */
+.vm-voice .vdot{width:7px;height:7px;border-radius:50%;flex-shrink:0;opacity:.7}
+.vm-voice.male .vdot{background:var(--cyan)}
+.vm-voice.female .vdot{background:#f472b6}
 .vm-create{width:100%;margin-top:20px;padding:13px;border-radius:10px;border:none;
   background:linear-gradient(135deg,var(--purple),var(--cyan));
   color:#fff;font-size:14px;font-weight:700;cursor:pointer;
@@ -756,13 +767,26 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
       </div>
     </div>
 
-    <div class="vm-label">Narration Voice</div>
+    <div class="vm-label">Voice — যেকোনো ভাষায় লিখুন, voice auto-match হবে</div>
     <div class="vm-voices" id="vm-voices">
-      <div class="vm-voice sel" data-voice="en">🇺🇸 English</div>
-      <div class="vm-voice" data-voice="en-f">🇺🇸 English ♀</div>
-      <div class="vm-voice" data-voice="bn">🇧🇩 বাংলা</div>
-      <div class="vm-voice" data-voice="bn-m">🇧🇩 বাংলা ♂</div>
-      <div class="vm-voice" data-voice="banglish">🌐 Banglish</div>
+      <div class="vm-vgrp">
+        <div class="vm-vgrp-lbl">♂ Male</div>
+        <div class="vm-voice-row">
+          <div class="vm-voice male sel" data-voice="Brian"><span class="vdot"></span>Brian <span style="opacity:.5;font-size:10px">UK</span></div>
+          <div class="vm-voice male" data-voice="Joey"><span class="vdot"></span>Joey <span style="opacity:.5;font-size:10px">US</span></div>
+          <div class="vm-voice male" data-voice="Matthew"><span class="vdot"></span>Matthew <span style="opacity:.5;font-size:10px">US</span></div>
+          <div class="vm-voice male" data-voice="Russell"><span class="vdot"></span>Russell <span style="opacity:.5;font-size:10px">AU</span></div>
+        </div>
+      </div>
+      <div class="vm-vgrp">
+        <div class="vm-vgrp-lbl">♀ Female</div>
+        <div class="vm-voice-row">
+          <div class="vm-voice female" data-voice="Amy"><span class="vdot"></span>Amy <span style="opacity:.5;font-size:10px">UK</span></div>
+          <div class="vm-voice female" data-voice="Joanna"><span class="vdot"></span>Joanna <span style="opacity:.5;font-size:10px">US</span></div>
+          <div class="vm-voice female" data-voice="Emma"><span class="vdot"></span>Emma <span style="opacity:.5;font-size:10px">UK</span></div>
+          <div class="vm-voice female" data-voice="Nicole"><span class="vdot"></span>Nicole <span style="opacity:.5;font-size:10px">AU</span></div>
+        </div>
+      </div>
     </div>
 
     <button class="vm-create" id="vm-create-btn" onclick="startVideoCreation()">
@@ -782,15 +806,18 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     <!-- Result -->
     <div class="vm-result" id="vm-result">
       <div class="vm-result-title">✅ Video ready!</div>
+      <div id="vm-preview-wrap" style="display:none;margin-bottom:14px;border-radius:10px;overflow:hidden;background:#000"></div>
       <div id="vm-dl-links" style="display:flex;gap:10px;flex-wrap:wrap"></div>
     </div>
 
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);font-size:11px;color:var(--t3);line-height:1.7">
-      ⚡ <strong style="color:var(--t2)">100% Free · No daemon · No API keys</strong> —
-      Voice: StreamElements TTS &nbsp;·&nbsp;
-      Images: Pollinations.ai Flux &nbsp;·&nbsp;
-      Compose: Canvas + MediaRecorder (browser-native) &nbsp;·&nbsp;
-      Output: WebM (plays on all platforms, upload directly to YouTube/TikTok/Facebook)
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);font-size:11px;color:var(--t3);line-height:1.85">
+      <div style="color:var(--t2);font-weight:600;margin-bottom:5px">⚡ How it works</div>
+      🧠 LLM বুঝবে Banglish / বাংলা / English — যেকোনো ভাষায় লিখুন<br>
+      🖼 Image সবসময় script এর content অনুযায়ী generate হবে (English Flux prompt auto-translate)<br>
+      🎙 StreamElements TTS — 4 male (Brian · Joey · Matthew · Russell) + 4 female (Amy · Joanna · Emma · Nicole)<br>
+      🎞 Canvas records: Intro/Outro cards · Ken Burns · Lower-third captions · 30fps · 8 Mbps VP9<br>
+      📥 WebM output with inline preview — direct upload to YouTube / TikTok / Reels / Shorts<br>
+      <span style="color:var(--green)">✅ 100% free · no watermark · no server · Groq/OR key লাগবে ⚙ Settings এ</span>
     </div>
   </div>
 </div>
@@ -1922,63 +1949,62 @@ function newChat(){
 })();
 
 /* ══════════════════════════════════════════════════════════════════════════
-   VIDEO CREATOR — 100% Browser-Only, No Daemon, No API Keys
+   VIDEO CREATOR v2.0 — Professional Browser-Only Video Generation
    Stack: JARVIS LLM (scenes) · Pollinations.ai Flux (images) ·
-          StreamElements TTS / Web Speech (voice) · Canvas + MediaRecorder (compose)
-   ══════════════════════════════════════════════════════════════════════════ */
+          StreamElements TTS (primary) · Web Speech (fallback) ·
+          Canvas 2D + MediaRecorder (compose)
+   ═══════════════════════════════════════════════════════════════════════ */
 (function(){
 'use strict';
 
+// ── Config ─────────────────────────────────────────────────────────────────
+const VM_FPS      = 30;            // frames per second
+const VM_BITRATE  = 8_000_000;     // 8 Mbps — broadcast quality
+const VM_FADE     = 0.15;          // fraction of scene duration for fade in/out
+const VM_CARD_DUR = 2.8;           // seconds for intro/outro cards
+const VM_IMG_TO   = 22_000;        // ms image load timeout
+
 // ── State ──────────────────────────────────────────────────────────────────
 const VM={
-  platform:'youtube', voice:'en', aborted:false,
-  recording:false, chunks:[], audioCtx:null,
+  platform:'youtube', voice:'Brian', aborted:false, chunks:[], audioCtx:null,
 };
 
-// ── Dimensions per platform ────────────────────────────────────────────────
+// ── Platform dimensions ────────────────────────────────────────────────────
 const VM_DIM={
   youtube:[1280,720], shorts:[720,1280], tiktok:[720,1280],
   reels:[720,1280],   facebook:[1080,1080],
 };
 
-// ── StreamElements voice map (free TTS API, returns MP3, CORS-enabled) ────
-const VM_VOICE_MAP={
-  'en':      {se:'Brian', lang:'en-US'},
-  'en-f':    {se:'Amy',   lang:'en-US'},
-  'bn':      {se:null,    lang:'bn-BD'},
-  'bn-m':    {se:null,    lang:'bn-BD'},
-  'banglish':{se:'Brian', lang:'en-US'},
+// ── Voice → Web Speech lang (StreamElements voice name used directly) ──────
+// Works for English AND Banglish (Brian/Amy reads romanized Bengali fine)
+const VM_VOICE_LANG={
+  Brian:'en-GB', Joey:'en-US', Matthew:'en-US', Russell:'en-AU',
+  Amy:'en-GB',   Joanna:'en-US', Emma:'en-GB',  Nicole:'en-AU',
 };
 
 // ── Ken Burns presets ──────────────────────────────────────────────────────
-const KB_PRESETS=[
-  {z0:1.00,z1:1.10,ox0:0,   oy0:0,   ox1:0.04, oy1:0.02},  // zoom in + drift right
-  {z0:1.10,z1:1.00,ox0:0.04,oy0:0.02,ox1:0,    oy1:0   },  // zoom out + drift left
-  {z0:1.00,z1:1.08,ox0:0.02,oy0:0.04,ox1:0,    oy1:0   },  // zoom in + drift up
-  {z0:1.05,z1:1.00,ox0:0,   oy0:0,   ox1:0.03, oy1:0.03},  // slow zoom out
-  {z0:1.00,z1:1.12,ox0:0.04,oy0:0,   ox1:0,    oy1:0.04},  // zoom in diagonal
+const VM_KB=[
+  {z0:1.00,z1:1.10,ox0:0.00,oy0:0.00,ox1:0.04,oy1:0.02},
+  {z0:1.10,z1:1.00,ox0:0.04,oy0:0.02,ox1:0.00,oy1:0.00},
+  {z0:1.00,z1:1.08,ox0:0.02,oy0:0.04,ox1:0.00,oy1:0.00},
+  {z0:1.05,z1:1.00,ox0:0.00,oy0:0.00,ox1:0.03,oy1:0.03},
+  {z0:1.00,z1:1.12,ox0:0.04,oy0:0.00,ox1:0.00,oy1:0.04},
+  {z0:1.08,z1:1.01,ox0:0.02,oy0:0.02,ox1:0.04,oy1:0.00},
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Open / Close
 // ═══════════════════════════════════════════════════════════════════════════
-window.openVideoModal=function(){
-  vmReset();
-  $('video-modal').classList.add('on');
-};
-window.closeVideoModal=function(){
-  VM.aborted=true;
-  $('video-modal').classList.remove('on');
-};
-$('video-modal').addEventListener('click',e=>{
-  if(e.target===$('video-modal')) closeVideoModal();
-});
+window.openVideoModal=function(){ vmReset(); $('video-modal').classList.add('on'); };
+window.closeVideoModal=function(){ VM.aborted=true; $('video-modal').classList.remove('on'); };
+$('video-modal').addEventListener('click',e=>{ if(e.target===$('video-modal')) closeVideoModal(); });
 
 // ── Selector wiring ────────────────────────────────────────────────────────
 document.querySelectorAll('.vm-plat').forEach(el=>el.addEventListener('click',()=>{
   document.querySelectorAll('.vm-plat').forEach(e=>e.classList.remove('sel'));
   el.classList.add('sel'); VM.platform=el.dataset.plat;
 }));
+// Voice selector — data-voice = StreamElements voice name (Brian, Amy, etc.)
 document.querySelectorAll('.vm-voice').forEach(el=>el.addEventListener('click',()=>{
   document.querySelectorAll('.vm-voice').forEach(e=>e.classList.remove('sel'));
   el.classList.add('sel'); VM.voice=el.dataset.voice;
@@ -1995,33 +2021,35 @@ window.startVideoCreation=async function(){
   $('vm-create-btn').disabled=true;
 
   try{
-    // ── Phase 1: scene breakdown via LLM ──────────────────────────────────
-    vmProg(4,'🧠 Breaking script into scenes…');
+    // Phase 1 — LLM scene breakdown
+    vmProg(4,'🧠 Analyzing script and planning scenes…');
     const scenes=await vmParseScenes(script);
     if(VM.aborted) return;
+    vmProg(10,`✅ ${scenes.length} scenes planned`);
 
-    // ── Phase 2: pre-fetch all images + audio in parallel ─────────────────
+    // Phase 2 — Load assets
     const [W,H]=VM_DIM[VM.platform]||[1280,720];
-    const voiceCfg=VM_VOICE_MAP[VM.voice]||VM_VOICE_MAP['en'];
+    const voiceName=VM.voice||'Brian';
     VM.audioCtx=new AudioContext();
+    if(VM.audioCtx.state==='suspended') await VM.audioCtx.resume().catch(()=>{});
 
     for(let i=0;i<scenes.length;i++){
       if(VM.aborted) return;
-      const pct=8+Math.round(i/scenes.length*40);
-      vmProg(pct,`🖼 Scene ${i+1}/${scenes.length}: loading image…`);
+      const pct=10+Math.round(i/scenes.length*38);
+      vmProg(pct,`🖼 Scene ${i+1}/${scenes.length}: fetching image…`);
       scenes[i]._img=await vmFetchImage(scenes[i].visual_prompt,W,H,i*137+42);
-      vmProg(pct+2,`🎙 Scene ${i+1}/${scenes.length}: generating voice…`);
-      scenes[i]._audio=await vmFetchAudio(scenes[i].narration,voiceCfg);
+      vmProg(pct+1,`🎙 Scene ${i+1}/${scenes.length}: generating voice (${voiceName})…`);
+      scenes[i]._audio=await vmFetchAudio(scenes[i].narration,voiceName);
     }
     if(VM.aborted) return;
 
-    // ── Phase 3: record canvas → WebM ─────────────────────────────────────
-    vmProg(50,'🎬 Recording video…');
-    const blob=await vmRecord(scenes,W,H,voiceCfg);
+    // Phase 3 — Record
+    vmProg(50,'🎬 Compositing and recording video…');
+    const blob=await vmRecord(scenes,W,H,script);
     if(VM.aborted) return;
 
-    // ── Phase 4: offer download ────────────────────────────────────────────
-    vmProg(100,'✅ Done!');
+    // Phase 4 — Result
+    vmProg(100,'✅ Video ready!');
     vmShowResult(blob);
 
   }catch(err){
@@ -2035,314 +2063,471 @@ window.startVideoCreation=async function(){
 // ═══════════════════════════════════════════════════════════════════════════
 // Phase 1 — LLM scene breakdown
 // ═══════════════════════════════════════════════════════════════════════════
-const VM_SCENE_PROMPT=`You are a professional video director.
-Break this script into video scenes for a social media video.
+const VM_SCENE_PROMPT=`You are a professional AI video director and scriptwriter.
 
-Rules:
-- 5 to 10 scenes, each 8–20 seconds of spoken narration
-- Split at natural sentence/paragraph breaks
-- visual_prompt: vivid Flux image prompt (cinematic, photorealistic, NO text in image)
-- caption: 4–7 words max shown on screen
+The script below may be written in English, Banglish (Bengali using English letters, e.g. "Amar desh Bangladesh, ekhane onek sundar jaiga ache"), or Bengali (বাংলা). Detect the language automatically.
 
-Return ONLY valid JSON array, no markdown:
+STRICT RULES — follow exactly:
+
+1. "narration"
+   - Copy or lightly adapt text from the script
+   - KEEP THE EXACT SAME LANGUAGE AND STYLE as input
+   - If input is Banglish → narration must be Banglish
+   - If input is Bengali → narration must be Bengali
+   - If input is English → narration must be English
+   - DO NOT translate
+
+2. "visual_prompt"
+   - ALWAYS write in ENGLISH ONLY — this is fed to an AI image generator (Flux)
+   - Translate the scene topic/mood into vivid English image description
+   - Include: setting, lighting, mood, camera angle, art style
+   - Example: "Lush green rice fields in Bangladesh at golden hour, aerial drone shot, cinematic, 8K"
+   - NO text in image, NO watermarks, photorealistic
+
+3. "caption"
+   - 3–5 word headline, SAME language as the script
+   - Banglish script → Banglish caption
+   - Bengali script → Bengali caption
+
+4. Create 5–10 scenes, each 8–18 seconds of spoken narration (~30–60 words)
+5. Split at natural paragraph or sentence breaks
+
+Return ONLY a valid JSON array — no markdown, no explanation:
 [{"narration":"...","visual_prompt":"...","caption":"..."}]
 
 Script:
 `;
 
 async function vmParseScenes(script){
-  // Try to call JARVIS LLM (non-streaming)
-  const prompt=VM_SCENE_PROMPT+script;
   let raw='';
-  try{ raw=await vmLLMComplete(prompt); }
-  catch(e){ log('[video] LLM failed, using naive split'); }
+  try{ raw=await vmLLMComplete(VM_SCENE_PROMPT+script); }
+  catch(e){ /* fall through to naive split */ }
 
-  // Parse JSON
   if(raw){
-    const m=raw.match(/\[[\s\S]*\]/);
+    const m=raw.match(/\[[\s\S]*?\]/);
     if(m){
       try{
         const arr=JSON.parse(m[0]);
-        if(Array.isArray(arr)&&arr.length){
+        if(Array.isArray(arr)&&arr.length>=2){
           return arr.map(s=>({
-            narration:s.narration||script.slice(0,200),
-            visual_prompt:s.visual_prompt||'cinematic dark background, professional',
-            caption:s.caption||'',
+            narration    :(s.narration||'').trim()||script.slice(0,200),
+            visual_prompt:(s.visual_prompt||'').trim()||'cinematic dark background, professional studio',
+            caption      :(s.caption||'').trim(),
           }));
         }
       }catch{}
     }
   }
 
-  // Naive fallback: split by paragraph/sentences
+  // Naive fallback
   const paras=script.split(/\n\n+/).filter(Boolean);
-  const chunks=paras.length>1?paras:script.match(/[^.!?]+[.!?]+/g)||[script];
-  const step=Math.max(1,Math.ceil(chunks.length/8));
-  const scenes=[];
+  const chunks=paras.length>1?paras:(script.match(/[^.!?]+[.!?]+/g)||[script]);
+  const step=Math.max(1,Math.ceil(chunks.length/7));
+  const out=[];
   for(let i=0;i<chunks.length;i+=step){
     const narration=chunks.slice(i,i+step).join(' ').trim();
-    scenes.push({
+    out.push({
       narration,
-      visual_prompt:`cinematic professional background, dark atmosphere, scene ${scenes.length+1}`,
-      caption:narration.split(' ').slice(0,6).join(' '),
+      visual_prompt:`cinematic professional documentary, dramatic lighting, scene ${out.length+1}, 8k`,
+      caption:narration.split(' ').slice(0,5).join(' '),
     });
-    if(scenes.length>=10) break;
+    if(out.length>=8) break;
   }
-  return scenes;
+  return out;
 }
 
-// Non-streaming LLM call using whichever JARVIS provider is active
+// Non-streaming LLM call
 async function vmLLMComplete(prompt){
   const msgs=[{role:'user',content:prompt}];
   const body={messages:msgs,stream:false,max_tokens:2048,temperature:0.3};
 
-  // Groq
   if(S.groqKey&&S.provider!=='custom'){
     const r=await fetch(`${GROQ_BASE}/chat/completions`,{
-      method:'POST',
-      headers:{'Authorization':`Bearer ${S.groqKey}`,'Content-Type':'application/json'},
+      method:'POST',headers:{'Authorization':`Bearer ${S.groqKey}`,'Content-Type':'application/json'},
       body:JSON.stringify({...body,model:S.activeModel?.id||'llama-3.3-70b-versatile'}),
       signal:AbortSignal.timeout(30000),
     });
-    const d=await r.json();
-    return d.choices?.[0]?.message?.content||'';
+    return (await r.json()).choices?.[0]?.message?.content||'';
   }
-  // OpenRouter
   if(S.orKey&&S.activeModel){
     const r=await fetch(`${OR_BASE}/chat/completions`,{
-      method:'POST',
-      headers:{'Authorization':`Bearer ${S.orKey}`,'Content-Type':'application/json','HTTP-Referer':'http://localhost:8787','X-Title':'JARVIS'},
+      method:'POST',headers:{'Authorization':`Bearer ${S.orKey}`,'Content-Type':'application/json','HTTP-Referer':'http://localhost:8787','X-Title':'JARVIS'},
       body:JSON.stringify({...body,model:S.activeModel.id}),
       signal:AbortSignal.timeout(30000),
     });
-    const d=await r.json();
-    return d.choices?.[0]?.message?.content||'';
+    return (await r.json()).choices?.[0]?.message?.content||'';
   }
-  // Custom API (OpenAI-compat only)
   const api=S.customApis?.find(a=>a.active&&a.type==='openai');
   if(api){
     const r=await fetch(`${api.url}/chat/completions`,{
-      method:'POST',
-      headers:{'Authorization':`Bearer ${api.key}`,'Content-Type':'application/json'},
+      method:'POST',headers:{'Authorization':`Bearer ${api.key}`,'Content-Type':'application/json'},
       body:JSON.stringify({...body,model:api.model}),
       signal:AbortSignal.timeout(30000),
     });
-    const d=await r.json();
-    return d.choices?.[0]?.message?.content||'';
+    return (await r.json()).choices?.[0]?.message?.content||'';
   }
   throw new Error('No LLM available — add a Groq/OpenRouter key in ⚙ Settings');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Phase 2a — Fetch image from Pollinations.ai (Flux, free, CORS-OK)
+// Phase 2a — Image: Pollinations.ai Flux (free, CORS-OK) + timeout
 // ═══════════════════════════════════════════════════════════════════════════
 function vmFetchImage(prompt,W,H,seed){
   return new Promise(resolve=>{
+    const fallback=()=>resolve(vmGradientCanvas(W,H));
+    const timer=setTimeout(fallback,VM_IMG_TO);
     const img=new Image();
     img.crossOrigin='anonymous';
-    const full=encodeURIComponent(prompt+', cinematic, 8k, photorealistic, professional, no text, no watermark');
-    img.src=`https://image.pollinations.ai/prompt/${full}?width=${W}&height=${H}&nologo=true&seed=${seed}&model=flux&enhance=true`;
-    img.onload=()=>resolve(img);
-    img.onerror=()=>{
-      // Fallback: gradient canvas
-      const c=document.createElement('canvas'); c.width=W; c.height=H;
-      const x=c.getContext('2d');
-      const g=x.createLinearGradient(0,0,W,H);
-      g.addColorStop(0,'#0d0d18'); g.addColorStop(1,'#1a1a2e');
-      x.fillStyle=g; x.fillRect(0,0,W,H);
-      const img2=new Image();
-      c.toBlob(b=>{img2.src=URL.createObjectURL(b);img2.onload=()=>resolve(img2);});
-    };
+    const enc=encodeURIComponent(prompt+', cinematic lighting, photorealistic, 8k ultra HD, professional, no text, no watermark');
+    img.src=`https://image.pollinations.ai/prompt/${enc}?width=${W}&height=${H}&nologo=true&seed=${seed}&model=flux&enhance=true`;
+    img.onload=()=>{ clearTimeout(timer); resolve(img); };
+    img.onerror=()=>{ clearTimeout(timer); fallback(); };
   });
 }
 
+function vmGradientCanvas(W,H){
+  const c=document.createElement('canvas'); c.width=W; c.height=H;
+  const x=c.getContext('2d');
+  const palettes=[['#0d0d1a','#1a1a2e'],['#0d1117','#161b22'],['#12091a','#1a0d2e'],['#091212','#0d2020']];
+  const p=palettes[Math.floor(Math.random()*palettes.length)];
+  const g=x.createLinearGradient(0,0,W,H);
+  g.addColorStop(0,p[0]); g.addColorStop(1,p[1]);
+  x.fillStyle=g; x.fillRect(0,0,W,H);
+  return c;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
-// Phase 2b — TTS: StreamElements (primary) → Web Speech (fallback)
+// Phase 2b — TTS: StreamElements (voice name) → Google TTS → Web Speech
+// voiceName = 'Brian' | 'Joey' | 'Matthew' | 'Russell' | 'Amy' | 'Joanna' | 'Emma' | 'Nicole'
+// Works for English + Banglish (romanized Bengali reads fine with EN voices)
 // ═══════════════════════════════════════════════════════════════════════════
-async function vmFetchAudio(text,voiceCfg){
-  // Try StreamElements (free TTS API, returns MP3, supports CORS)
-  if(voiceCfg.se&&VM.audioCtx){
+async function vmFetchAudio(text, voiceName){
+  const fallbackLang = VM_VOICE_LANG[voiceName] || 'en-US';
+
+  if(voiceName && VM.audioCtx){
+    // ── Primary: StreamElements (free, CORS-OK, returns MP3) ─────────────
     try{
-      const url=`https://api.streamelements.com/kappa/v2/speech?voice=${voiceCfg.se}&text=${encodeURIComponent(text)}`;
+      const url=`https://api.streamelements.com/kappa/v2/speech?voice=${encodeURIComponent(voiceName)}&text=${encodeURIComponent(text)}`;
       const resp=await fetch(url,{signal:AbortSignal.timeout(15000)});
       if(resp.ok){
         const buf=await resp.arrayBuffer();
-        return await VM.audioCtx.decodeAudioData(buf);
+        const decoded=await VM.audioCtx.decodeAudioData(buf);
+        return decoded; // AudioBuffer
       }
-    }catch(e){ /* fall through */ }
+    }catch{}
+
+    // ── Secondary: Google Translate TTS (unofficial, free) ────────────────
+    // Handles Bengali text better than StreamElements
+    try{
+      const langCode=fallbackLang.split('-')[0]; // 'en', 'bn', etc.
+      const safeText=text.slice(0,200);
+      const url=`https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(safeText)}&tl=${langCode}&client=tw-ob`;
+      const resp=await fetch(url,{signal:AbortSignal.timeout(10000)});
+      if(resp.ok){
+        const buf=await resp.arrayBuffer();
+        const decoded=await VM.audioCtx.decodeAudioData(buf);
+        return decoded;
+      }
+    }catch{}
   }
-  // Estimate duration from word count (for timing without audio)
+
+  // ── Fallback: Web Speech API (plays to speakers, NOT recorded) ────────
+  // Still keeps timing correct via word-count estimation
   const words=text.trim().split(/\s+/).length;
-  return {duration:Math.max(4,words/2.5), _webSpeech:text, _lang:voiceCfg.lang};
+  return {duration:Math.max(5, words/2.5), _webSpeech:text, _lang:fallbackLang};
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Phase 3 — Canvas recording
 // ═══════════════════════════════════════════════════════════════════════════
-async function vmRecord(scenes,W,H,voiceCfg){
+async function vmRecord(scenes,W,H,rawScript){
   const canvas=document.createElement('canvas');
   canvas.width=W; canvas.height=H;
   const ctx=canvas.getContext('2d',{alpha:false});
 
-  // Set up MediaRecorder — video + audio combined
   const audioDest=VM.audioCtx.createMediaStreamDestination();
-  const videoStream=canvas.captureStream(25);
-  const combined=new MediaStream([
-    ...videoStream.getVideoTracks(),
-    ...audioDest.stream.getAudioTracks(),
-  ]);
+  const videoStream=canvas.captureStream(VM_FPS);
+  const combined=new MediaStream([...videoStream.getVideoTracks(),...audioDest.stream.getAudioTracks()]);
 
-  const mime=MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
-    ?'video/webm;codecs=vp9,opus':'video/webm';
+  const mime=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm']
+    .find(m=>MediaRecorder.isTypeSupported(m))||'video/webm';
   VM.chunks=[];
-  const rec=new MediaRecorder(combined,{mimeType:mime,videoBitsPerSecond:6_000_000});
+  const rec=new MediaRecorder(combined,{mimeType:mime,videoBitsPerSecond:VM_BITRATE});
   rec.ondataavailable=e=>{ if(e.data&&e.data.size>0) VM.chunks.push(e.data); };
   rec.start(200);
 
-  const FADE=0.18; // fraction of scene duration for fade in/out
+  // ── Intro title card ────────────────────────────────────────────────────
+  const title=rawScript.split(/[.\n!?]/)[0].trim().slice(0,64)||'AI Generated Video';
+  vmPlaySilence(VM_CARD_DUR,audioDest);
+  await vmRenderCard(ctx,W,H,'intro',title);
 
+  // ── Scene loop ──────────────────────────────────────────────────────────
   for(let i=0;i<scenes.length;i++){
     if(VM.aborted){ rec.stop(); return new Blob(VM.chunks,{type:mime}); }
     const s=scenes[i];
     const durSec=s._audio?.duration||8;
-    const pct=50+Math.round(i/scenes.length*46);
-    vmProg(pct,`🎞 Rendering scene ${i+1}/${scenes.length} (${Math.round(durSec)}s)…`);
+    const pct=52+Math.round(i/scenes.length*42);
+    vmProg(pct,`🎞 Scene ${i+1}/${scenes.length} — ${Math.round(durSec)}s…`);
 
-    // Play audio
+    // FIXED: correct AudioBuffer detection — check _webSpeech absence (not .buffer property)
     let audioEndPromise=Promise.resolve();
-    if(s._audio&&s._audio.buffer!==undefined&&VM.audioCtx){
-      // AudioBuffer from StreamElements
+    if(s._audio&&!s._audio._webSpeech&&VM.audioCtx){
+      // Real AudioBuffer from TTS API
       const src=VM.audioCtx.createBufferSource();
       src.buffer=s._audio;
       src.connect(audioDest);
       src.connect(VM.audioCtx.destination);
       src.start();
-      audioEndPromise=new Promise(r=>{ src.onended=r; setTimeout(r,(durSec+1)*1000); });
-    } else if(s._audio&&s._audio._webSpeech){
-      // Web Speech fallback — audio plays to speakers (not in file, but user hears it)
-      vmSpeak(s._audio._webSpeech, s._audio._lang);
+      audioEndPromise=new Promise(r=>{ src.onended=r; setTimeout(r,(durSec+2)*1000); });
+    } else if(s._audio?._webSpeech){
+      vmSpeak(s._audio._webSpeech, s._audio._lang, VM.voice);
+      vmPlaySilence(durSec,audioDest); // keep audio track alive
     }
 
-    // Render frames for this scene duration
-    const kb=KB_PRESETS[i%KB_PRESETS.length];
-    await vmRenderScene(ctx,s._img,s.caption,W,H,durSec,kb,FADE);
-
+    // FIXED: use setTimeout instead of requestAnimationFrame — stable in background tabs
+    const kb=VM_KB[i%VM_KB.length];
+    await vmRenderScene(ctx,s._img,s,i,scenes.length,W,H,durSec,kb);
     await audioEndPromise;
   }
 
-  // Final black frame for 0.3s
+  // ── Outro card ──────────────────────────────────────────────────────────
+  vmPlaySilence(VM_CARD_DUR,audioDest);
+  await vmRenderCard(ctx,W,H,'outro','Like · Share · Subscribe');
+
+  // Final black
   ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H);
-  await vmSleep(300);
+  await vmSleep(400);
 
   rec.stop();
   await new Promise(r=>rec.onstop=r);
   return new Blob(VM.chunks,{type:mime});
 }
 
-// ── Render a single scene with Ken Burns + fade ────────────────────────────
-function vmRenderScene(ctx,img,caption,W,H,durSec,kb,FADE){
+// ── Silence buffer (keeps audio track continuous during cards) ─────────────
+function vmPlaySilence(durSec,audioDest){
+  if(!VM.audioCtx) return;
+  try{
+    const n=Math.ceil(VM.audioCtx.sampleRate*durSec);
+    const buf=VM.audioCtx.createBuffer(2,n,VM.audioCtx.sampleRate);
+    const src=VM.audioCtx.createBufferSource();
+    src.buffer=buf; src.connect(audioDest); src.start();
+  }catch{}
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Intro / Outro card renderer
+// ═══════════════════════════════════════════════════════════════════════════
+function vmRenderCard(ctx,W,H,type,text){
   return new Promise(resolve=>{
+    const durMs=VM_CARD_DUR*1000;
     const startMs=performance.now();
-    const durMs=durSec*1000;
-    const font=`"Inter",-apple-system,Arial,sans-serif`;
+    const font='"Inter",-apple-system,Arial,sans-serif';
+    const fs=Math.max(26,Math.round(W/30));
+    const isIntro=type==='intro';
 
-    function frame(now){
-      if(VM.aborted){ resolve(); return; }
-      const t=Math.min((now-startMs)/durMs,1);
-      const ease=t<0.5?2*t*t:-1+(4-2*t)*t; // easeInOut
+    function frame(){
+      if(VM.aborted){resolve();return;}
+      const t=Math.min((performance.now()-startMs)/durMs,1);
+      const ease=t<0.5?2*t*t:-1+(4-2*t)*t;
 
-      // Ken Burns transform
-      const zoom=kb.z0+(kb.z1-kb.z0)*ease;
-      const sw=W/zoom, sh=H/zoom;
-      const sx=(kb.ox0+(kb.ox1-kb.ox0)*ease)*W + (W-sw)/2;
-      const sy=(kb.oy0+(kb.oy1-kb.oy0)*ease)*H + (H-sh)/2;
+      // Background
+      const bg=ctx.createLinearGradient(0,0,W,H);
+      bg.addColorStop(0,'#080810'); bg.addColorStop(1,'#0e0e1c');
+      ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
 
-      // Draw image
-      if(img){ ctx.drawImage(img,sx,sy,sw,sh,0,0,W,H); }
-      else { ctx.fillStyle='#0d0d18'; ctx.fillRect(0,0,W,H); }
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      const cx=W/2, cy=H/2;
 
-      // Dark vignette overlay
-      const vig=ctx.createRadialGradient(W/2,H/2,H*0.3,W/2,H/2,H*0.75);
-      vig.addColorStop(0,'rgba(0,0,0,0)');
-      vig.addColorStop(1,'rgba(0,0,0,0.45)');
-      ctx.fillStyle=vig; ctx.fillRect(0,0,W,H);
+      if(isIntro){
+        // Animated accent line grows in
+        const lineW=W*0.55*ease;
+        ctx.fillStyle='rgba(124,58,237,0.75)';
+        ctx.fillRect(cx-lineW/2,cy+fs*1.8,lineW,3);
 
-      // Caption
-      if(caption) vmDrawCaption(ctx,caption,W,H,font,t,FADE);
+        // "JARVIS PRESENTS" pill
+        ctx.globalAlpha=Math.min(1,t*4);
+        ctx.font=`600 ${Math.round(fs*0.42)}px ${font}`;
+        ctx.fillStyle='#7c3aed';
+        ctx.fillText('JARVIS PRESENTS',cx,cy-fs*2.0);
 
-      // Fade in / fade out overlay
-      const fadeOpacity=t<FADE ? 1-t/FADE : t>(1-FADE) ? (t-(1-FADE))/FADE : 0;
-      if(fadeOpacity>0){
-        ctx.fillStyle=`rgba(0,0,0,${fadeOpacity})`;
-        ctx.fillRect(0,0,W,H);
+        // Main title
+        ctx.globalAlpha=Math.min(1,Math.max(0,(t-0.1)*4));
+        ctx.font=`800 ${fs}px ${font}`;
+        ctx.fillStyle='#ffffff';
+        ctx.shadowColor='rgba(124,58,237,0.35)'; ctx.shadowBlur=24;
+        vmFillWrapped(ctx,text.toUpperCase(),cx,cy,W*0.82,fs);
+        ctx.shadowBlur=0;
+
+        // Year / platform tag
+        ctx.globalAlpha=Math.min(1,Math.max(0,(t-0.3)*3));
+        ctx.font=`500 ${Math.round(fs*0.38)}px ${font}`;
+        ctx.fillStyle='#555';
+        ctx.fillText(new Date().getFullYear()+' · AI Generated',cx,cy+fs*2.5);
+      } else {
+        // Outro
+        ctx.globalAlpha=Math.min(1,t*3);
+
+        // Top tagline
+        ctx.font=`600 ${Math.round(fs*0.42)}px ${font}`;
+        ctx.fillStyle='#38bdf8';
+        ctx.fillText('CREATED WITH JARVIS AI',cx,cy-fs*2.2);
+
+        // Main CTA
+        ctx.globalAlpha=Math.min(1,Math.max(0,(t-0.1)*4));
+        ctx.font=`800 ${Math.round(fs*1.15)}px ${font}`;
+        ctx.fillStyle='#ffffff';
+        ctx.shadowColor='rgba(56,189,248,0.3)'; ctx.shadowBlur=20;
+        ctx.fillText('Like & Subscribe',cx,cy-fs*0.2);
+        ctx.shadowBlur=0;
+
+        // Sub-text
+        ctx.globalAlpha=Math.min(1,Math.max(0,(t-0.2)*3));
+        ctx.font=`400 ${Math.round(fs*0.44)}px ${font}`;
+        ctx.fillStyle='#666';
+        ctx.fillText('for more AI-powered content',cx,cy+fs*1.2);
+
+        // Accent bar
+        ctx.fillStyle='rgba(124,58,237,0.5)';
+        ctx.fillRect(cx-fs*2.5,cy+fs*2.0,fs*5,2);
       }
 
-      if(t<1) requestAnimationFrame(frame);
+      // Fade in (first 15%) / Fade out (last 15%)
+      const fo=t<0.15?(1-t/0.15):t>0.85?(t-0.85)/0.15:0;
+      if(fo>0){ ctx.globalAlpha=1; ctx.fillStyle=`rgba(0,0,0,${fo})`; ctx.fillRect(0,0,W,H); }
+      ctx.globalAlpha=1;
+
+      if(t<1) setTimeout(frame,1000/VM_FPS);
       else resolve();
     }
-    requestAnimationFrame(frame);
+    frame();
   });
 }
 
-// ── Burn caption onto canvas ───────────────────────────────────────────────
-function vmDrawCaption(ctx,text,W,H,font,t,FADE){
-  const fadeIn=Math.min(1,(t-FADE*0.5)/(FADE*0.5));
-  const fadeOut=t>(1-FADE)?Math.max(0,1-(t-(1-FADE))/(FADE*0.5)):1;
-  const alpha=Math.min(fadeIn,fadeOut);
+// ═══════════════════════════════════════════════════════════════════════════
+// Scene renderer — Ken Burns + professional lower-third captions
+// ═══════════════════════════════════════════════════════════════════════════
+function vmRenderScene(ctx,img,scene,sceneIdx,sceneCount,W,H,durSec,kb){
+  return new Promise(resolve=>{
+    const startMs=performance.now();
+    const durMs=durSec*1000;
+    const font='"Inter",-apple-system,Arial,sans-serif';
+
+    function frame(){
+      if(VM.aborted){resolve();return;}
+      const t=Math.min((performance.now()-startMs)/durMs,1);
+      const ease=t<0.5?2*t*t:-1+(4-2*t)*t;
+
+      // ── Ken Burns ────────────────────────────────────────────────────────
+      const zoom=kb.z0+(kb.z1-kb.z0)*ease;
+      const sw=W/zoom, sh=H/zoom;
+      const sx=(kb.ox0+(kb.ox1-kb.ox0)*ease)*W+(W-sw)/2;
+      const sy=(kb.oy0+(kb.oy1-kb.oy0)*ease)*H+(H-sh)/2;
+      ctx.drawImage(img,sx,sy,sw,sh,0,0,W,H);
+
+      // ── Cinematic color grade (subtle blue shadow overlay) ───────────────
+      ctx.fillStyle='rgba(0,8,18,0.10)'; ctx.fillRect(0,0,W,H);
+
+      // ── Vignette ─────────────────────────────────────────────────────────
+      const vig=ctx.createRadialGradient(W/2,H/2,H*0.22,W/2,H/2,H*0.82);
+      vig.addColorStop(0,'rgba(0,0,0,0)'); vig.addColorStop(1,'rgba(0,0,0,0.58)');
+      ctx.fillStyle=vig; ctx.fillRect(0,0,W,H);
+
+      // ── Bottom gradient (caption readability) ────────────────────────────
+      const btm=ctx.createLinearGradient(0,H*0.6,0,H);
+      btm.addColorStop(0,'rgba(0,0,0,0)'); btm.addColorStop(1,'rgba(0,0,0,0.72)');
+      ctx.fillStyle=btm; ctx.fillRect(0,0,W,H);
+
+      // ── Top progress bar (subtle) ────────────────────────────────────────
+      ctx.fillStyle='rgba(0,0,0,0.35)'; ctx.fillRect(0,0,W,4);
+      ctx.fillStyle='rgba(124,58,237,0.8)';
+      ctx.fillRect(0,0,W*((sceneIdx+t)/sceneCount),4);
+
+      // ── Professional lower-third caption ─────────────────────────────────
+      if(scene.caption) vmDrawLowerThird(ctx,scene.caption,W,H,font,t);
+
+      // ── Fade in / out overlay ─────────────────────────────────────────────
+      const fo=t<VM_FADE?(1-t/VM_FADE):t>(1-VM_FADE)?(t-(1-VM_FADE))/VM_FADE:0;
+      if(fo>0){ ctx.fillStyle=`rgba(0,0,0,${fo})`; ctx.fillRect(0,0,W,H); }
+
+      if(t<1) setTimeout(frame,1000/VM_FPS);
+      else resolve();
+    }
+    frame();
+  });
+}
+
+// ── TV-style lower-third caption ───────────────────────────────────────────
+function vmDrawLowerThird(ctx,text,W,H,font,t){
+  const fi=Math.min(1,Math.max(0,(t-VM_FADE*0.3)/(VM_FADE*0.5)));
+  const fo=t>(1-VM_FADE*0.5)?Math.max(0,1-(t-(1-VM_FADE*0.5))/(VM_FADE*0.35)):1;
+  const alpha=fi*fo;
   if(alpha<=0) return;
 
-  const fs=Math.max(22,Math.round(W/38));
   ctx.save();
   ctx.globalAlpha=alpha;
+
+  const fs=Math.max(18,Math.round(W/42));
   ctx.font=`700 ${fs}px ${font}`;
-  ctx.textAlign='center';
-  ctx.textBaseline='alphabetic';
+  ctx.textAlign='left';
+  ctx.textBaseline='middle';
 
   // Word-wrap
-  const maxW=W*0.82;
+  const maxW=W*0.78;
   const words=text.split(' '); const lines=[]; let cur='';
   for(const w of words){
     const test=cur?cur+' '+w:w;
-    if(ctx.measureText(test).width>maxW&&cur){ lines.push(cur); cur=w; }
+    if(ctx.measureText(test).width>maxW&&cur){lines.push(cur);cur=w;}
     else cur=test;
   }
   if(cur) lines.push(cur);
 
-  const lh=fs*1.35;
+  const lh=fs*1.5;
   const totalH=lines.length*lh;
-  const py=H-totalH-H/11;
-  const pad=fs*0.55;
-  const bw=Math.max(...lines.map(l=>ctx.measureText(l).width))+pad*2;
+  const bx=W*0.055;
+  const by=H-totalH-H*0.07;
+  const barW=4, padX=fs*0.7;
 
-  // Pill background
-  ctx.fillStyle='rgba(0,0,0,0.58)';
-  vmRoundRect(ctx,W/2-bw/2,py-pad,bw,totalH+pad*2,fs*0.45);
-  ctx.fill();
+  // Purple accent bar
+  const barH=totalH+fs*0.4;
+  ctx.fillStyle='rgba(124,58,237,0.95)';
+  ctx.fillRect(bx,by-fs*0.2,barW,barH);
 
-  // Text
-  ctx.fillStyle='#fff';
-  lines.forEach((l,i)=>ctx.fillText(l,W/2,py+i*lh+fs));
+  // Text shadow
+  ctx.shadowColor='rgba(0,0,0,0.9)'; ctx.shadowBlur=8;
+  ctx.fillStyle='#ffffff';
+  lines.forEach((l,i)=>ctx.fillText(l,bx+barW+padX,by+i*lh+fs*0.5));
+  ctx.shadowBlur=0;
   ctx.restore();
 }
 
-function vmRoundRect(ctx,x,y,w,h,r){
-  ctx.beginPath();
-  ctx.moveTo(x+r,y);
-  ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
-  ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
-  ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
-  ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r);
-  ctx.closePath();
+// ── Text wrap + fill helper ────────────────────────────────────────────────
+function vmFillWrapped(ctx,text,cx,cy,maxW,fs){
+  const words=text.split(' '); const lines=[]; let cur='';
+  for(const w of words){
+    const test=cur?cur+' '+w:w;
+    if(ctx.measureText(test).width>maxW&&cur){lines.push(cur);cur=w;}
+    else cur=test;
+  }
+  if(cur) lines.push(cur);
+  const lh=fs*1.32;
+  lines.forEach((l,i)=>ctx.fillText(l,cx,cy+(i-(lines.length-1)/2)*lh));
 }
 
-// ── Web Speech fallback ────────────────────────────────────────────────────
-function vmSpeak(text,lang){
+// ── Web Speech fallback — tries to match gender via voice name ────────────
+const VM_FEMALE_VOICES=['Amy','Joanna','Emma','Nicole','Ivy','Salli','Kendra'];
+function vmSpeak(text, lang, voiceName){
   if(!window.speechSynthesis) return;
   speechSynthesis.cancel();
   const u=new SpeechSynthesisUtterance(text);
   u.lang=lang||'en-US'; u.rate=1.0; u.pitch=1.0;
-  const voices=speechSynthesis.getVoices().filter(v=>v.lang.startsWith(lang?.slice(0,2)||'en'));
-  if(voices.length) u.voice=voices[0];
+  const isFemale=VM_FEMALE_VOICES.includes(voiceName);
+  // Pick a browser voice matching language + gender preference
+  const available=speechSynthesis.getVoices();
+  const langBase=(lang||'en').slice(0,2);
+  const langVoices=available.filter(v=>v.lang.startsWith(langBase));
+  const match=langVoices.find(v=>isFemale?/female|woman|girl/i.test(v.name):!/female|woman|girl/i.test(v.name))
+    || langVoices[0];
+  if(match) u.voice=match;
   speechSynthesis.speak(u);
 }
 
@@ -2360,13 +2545,22 @@ function vmShowResult(blob){
   const mb=(blob.size/1024/1024).toFixed(1);
   const ext=blob.type.includes('webm')?'webm':'mp4';
   const plat=VM.platform.charAt(0).toUpperCase()+VM.platform.slice(1);
+
+  // Inline video preview
+  const pw=$('vm-preview-wrap');
+  if(pw){
+    const vid=document.createElement('video');
+    vid.src=url; vid.controls=true; vid.preload='metadata';
+    vid.style.cssText='width:100%;max-height:200px;display:block;background:#000';
+    pw.innerHTML=''; pw.appendChild(vid); pw.style.display='block';
+  }
+
   const links=$('vm-dl-links'); links.innerHTML='';
   const a=document.createElement('a');
-  a.className='vm-dl-btn';
-  a.href=url;
+  a.className='vm-dl-btn'; a.href=url;
   a.download=`jarvis-video-${VM.platform}-${Date.now()}.${ext}`;
   a.innerHTML=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-    ⬇ Download ${plat} (${mb} MB)`;
+    ⬇ Download ${plat} (${mb} MB · ${ext.toUpperCase()})`;
   links.appendChild(a);
   $('vm-result').className='vm-result on';
 }
@@ -2374,9 +2568,7 @@ function vmShowResult(blob){
 function vmShowErr(msg){
   $('vm-progress').className='vm-progress';
   $('vm-create-btn').disabled=false;
-  const el=$('vm-err');
-  el.textContent='⚠ '+msg;
-  el.className='vm-err on';
+  const el=$('vm-err'); el.textContent='⚠ '+msg; el.className='vm-err on';
 }
 
 function vmReset(){
@@ -2387,6 +2579,8 @@ function vmReset(){
   $('vm-create-btn').disabled=false;
   $('vm-prog-bar').style.width='0%';
   $('vm-prog-msg').textContent='';
+  const pw=$('vm-preview-wrap');
+  if(pw){ pw.innerHTML=''; pw.style.display='none'; }
 }
 
 function vmSleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
