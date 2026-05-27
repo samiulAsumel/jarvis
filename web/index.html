@@ -9,599 +9,417 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <style>
-/* ── Reset & variables ─────────────────────────────────────────────────── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg0:#06080f;--bg1:#0d1117;--bg2:#161b22;--bg3:#1f2937;
-  --glass:rgba(13,17,23,.88);--glass2:rgba(31,41,55,.55);
-  --border:rgba(0,212,255,.13);--border2:rgba(255,255,255,.06);
-  --cyan:#00d4ff;--cyan2:#00a8cc;--purple:#8b5cf6;
-  --blue:#3b82f6;--green:#10b981;--yellow:#f59e0b;--red:#ef4444;
-  --t1:#e2e8f0;--t2:#94a3b8;--t3:#64748b;
-  --glow:0 0 24px rgba(0,212,255,.22);
-  --glow-sm:0 0 8px rgba(0,212,255,.14);
-  --r:12px;--rs:8px;--rl:20px;--tr:.18s ease;
+  --bg:#0d0d11;
+  --sb-bg:#111118;
+  --sb-w:256px;
+  --surface:#1a1a24;
+  --surface2:#222230;
+  --border:rgba(255,255,255,.07);
+  --border2:rgba(255,255,255,.12);
+  --cyan:#00d4ff;--purple:#8b5cf6;
+  --green:#10b981;--yellow:#f59e0b;--red:#ef4444;--blue:#3b82f6;
+  --t1:#ececf1;--t2:#acacbe;--t3:#6b6b80;
+  --r:12px;--tr:.15s ease;
+  --user-bg:rgba(139,92,246,.13);
+  --user-border:rgba(139,92,246,.22);
 }
-html{scroll-behavior:smooth}
+html,body{height:100%;overflow:hidden}
 body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
-  background:var(--bg0);color:var(--t1);min-height:100vh;overflow-x:hidden;line-height:1.6}
-::selection{background:rgba(0,212,255,.22)}
-::-webkit-scrollbar{width:5px}
-::-webkit-scrollbar-track{background:var(--bg1)}
-::-webkit-scrollbar-thumb{background:rgba(0,212,255,.2);border-radius:3px}
-::-webkit-scrollbar-thumb:hover{background:var(--cyan2)}
+  background:var(--bg);color:var(--t1);display:flex;line-height:1.65;font-size:15px}
+::selection{background:rgba(139,92,246,.3)}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.2)}
 
-/* ── Animated background ───────────────────────────────────────────────── */
-.bg-grid{position:fixed;inset:0;z-index:0;pointer-events:none;
-  background-image:linear-gradient(rgba(0,212,255,.028) 1px,transparent 1px),
-                   linear-gradient(90deg,rgba(0,212,255,.028) 1px,transparent 1px);
-  background-size:55px 55px}
-.orb{position:fixed;z-index:0;border-radius:50%;filter:blur(110px);pointer-events:none;opacity:.38;
-  animation:orb 18s ease-in-out infinite alternate}
-.orb1{width:560px;height:560px;top:-180px;left:-120px;
-  background:radial-gradient(circle,rgba(0,212,255,.28) 0%,transparent 70%)}
-.orb2{width:480px;height:480px;bottom:-140px;right:-90px;animation-delay:-9s;
-  background:radial-gradient(circle,rgba(139,92,246,.22) 0%,transparent 70%)}
-@keyframes orb{from{transform:translate(0,0) scale(1)}to{transform:translate(36px,28px) scale(1.07)}}
+/* ── SIDEBAR ──────────────────────────────────────────────────────────────── */
+#sidebar{
+  width:var(--sb-w);flex-shrink:0;
+  background:var(--sb-bg);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;height:100vh;
+  transition:transform var(--tr);z-index:50;position:relative;
+}
+#sidebar.collapsed{transform:translateX(calc(-1 * var(--sb-w)))}
 
-/* ── Navbar ────────────────────────────────────────────────────────────── */
-#nav{position:fixed;top:0;left:0;right:0;z-index:100;height:54px;
-  display:flex;align-items:center;gap:12px;padding:0 20px;
-  background:rgba(6,8,15,.92);backdrop-filter:blur(20px);
-  border-bottom:1px solid var(--border2);transition:var(--tr)}
-.nav-brand{display:flex;align-items:center;gap:9px;cursor:pointer;text-decoration:none;flex-shrink:0}
-.nav-logo{width:30px;height:30px;border-radius:7px;
+.sb-head{padding:14px 12px 8px;display:flex;flex-direction:column;gap:8px;flex-shrink:0}
+.brand{display:flex;align-items:center;gap:9px;padding:4px 6px}
+.brand-ico{width:28px;height:28px;border-radius:7px;flex-shrink:0;
   background:linear-gradient(135deg,var(--cyan),var(--purple));
-  display:grid;place-items:center;font-size:14px;font-weight:900;color:#fff;
-  box-shadow:var(--glow-sm)}
-.nav-title{font-size:14px;font-weight:800;letter-spacing:2px;
+  display:grid;place-items:center;font-size:13px;font-weight:900;color:#fff}
+.brand-txt{font-size:14px;font-weight:800;letter-spacing:2px;
   background:linear-gradient(135deg,var(--cyan),var(--purple));
   -webkit-background-clip:text;-webkit-text-fill-color:transparent}
 
-/* nav search */
-#nav-search{flex:1;max-width:560px;display:none}
-#nav-search.on{display:block}
-.nsw{position:relative;display:flex;align-items:center}
-.nsw input{width:100%;height:34px;padding:0 40px 0 36px;
-  background:var(--bg2);border:1px solid var(--border2);border-radius:17px;
-  color:var(--t1);font-size:13px;outline:none;transition:var(--tr)}
-.nsw input:focus{border-color:var(--cyan);box-shadow:var(--glow-sm)}
-.nsw .ni-icon{position:absolute;left:11px;color:var(--t3);font-size:13px;pointer-events:none}
-.nsw .ni-mic{position:absolute;right:9px;background:none;border:none;cursor:pointer;
-  color:var(--t3);padding:3px;border-radius:4px;transition:var(--tr)}
-.nsw .ni-mic:hover{color:var(--cyan)}
+.new-btn{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:9px;
+  background:var(--surface);border:1px solid var(--border2);
+  color:var(--t1);font-size:13px;font-weight:600;cursor:pointer;transition:var(--tr);
+  text-align:left;width:100%}
+.new-btn:hover{background:var(--surface2);border-color:rgba(139,92,246,.4)}
+.new-btn svg{opacity:.6;flex-shrink:0}
 
-/* nav right */
-.nav-right{display:flex;align-items:center;gap:10px;margin-left:auto;flex-shrink:0}
-.model-chip{display:flex;align-items:center;gap:6px;
-  padding:4px 11px;border-radius:12px;
-  background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.2);
-  font-size:11px;font-weight:700;color:var(--cyan);letter-spacing:.3px;
-  white-space:nowrap}
+.sb-divider{height:1px;background:var(--border);margin:4px 12px}
+
+.sb-section-lbl{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--t3);padding:10px 18px 4px}
+
+#sb-list{flex:1;overflow-y:auto;padding:0 8px 8px}
+
+.sb-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;
+  cursor:pointer;transition:var(--tr);color:var(--t2);font-size:13px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-item:hover{background:var(--surface);color:var(--t1)}
+.sb-item.active{background:rgba(139,92,246,.12);color:var(--t1)}
+.sb-item-ico{font-size:13px;flex-shrink:0;opacity:.7}
+.sb-item-txt{overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+
+.sb-foot{padding:12px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0}
+.sb-mem{display:flex;align-items:center;gap:5px;padding:7px 10px;border-radius:8px;
+  background:var(--surface);border:1px solid var(--border);
+  color:var(--t3);font-size:12px;cursor:pointer;transition:var(--tr);flex-shrink:0}
+.sb-mem:hover{border-color:rgba(139,92,246,.4);color:var(--purple)}
+.sb-mem.has-mem{border-color:rgba(139,92,246,.3);color:var(--purple)}
+.sb-settings{flex:1;display:flex;align-items:center;gap:7px;padding:7px 10px;border-radius:8px;
+  background:var(--surface);border:1px solid var(--border);
+  color:var(--t2);font-size:12px;cursor:pointer;transition:var(--tr);font-weight:600}
+.sb-settings:hover{border-color:var(--border2);color:var(--t1)}
+
+/* ── MAIN ─────────────────────────────────────────────────────────────────── */
+#main{flex:1;display:flex;flex-direction:column;height:100vh;min-width:0}
+
+/* Topbar */
+#topbar{height:50px;display:flex;align-items:center;gap:12px;padding:0 16px;
+  border-bottom:1px solid var(--border);flex-shrink:0;
+  background:rgba(13,13,17,.9);backdrop-filter:blur(12px)}
+.tb-toggle{width:32px;height:32px;border-radius:7px;display:grid;place-items:center;
+  background:none;border:1px solid var(--border);color:var(--t3);cursor:pointer;
+  transition:var(--tr);flex-shrink:0}
+.tb-toggle:hover{border-color:var(--border2);color:var(--t1)}
+.model-chip{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;
+  background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.18);
+  font-size:11px;font-weight:700;color:var(--cyan);letter-spacing:.3px;white-space:nowrap}
 .model-chip .mdot{width:6px;height:6px;border-radius:50%;background:var(--green);
   box-shadow:0 0 5px var(--green);animation:pulse 2s ease-in-out infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 .model-chip.connecting .mdot{background:var(--yellow);animation:none;opacity:.8}
 .model-chip.offline .mdot{background:var(--red);animation:none}
-.btn-icon{width:30px;height:30px;border-radius:7px;display:grid;place-items:center;
-  background:var(--bg2);border:1px solid var(--border2);
-  color:var(--t2);cursor:pointer;font-size:14px;transition:var(--tr)}
-.btn-icon:hover{border-color:var(--cyan);color:var(--cyan)}
-/* mem-badge — glows purple when memory exists */
-#mem-badge{font-size:11px;gap:3px;min-width:30px;padding:0 4px}
-#mem-badge.has-mem{border-color:rgba(139,92,246,.4);color:var(--purple);
-  box-shadow:0 0 8px rgba(139,92,246,.25)}
-.btn-newchat{padding:6px 13px;border-radius:7px;font-size:12px;font-weight:700;
-  background:transparent;border:1px solid var(--border2);color:var(--t2);
-  cursor:pointer;transition:var(--tr);display:none}
-.btn-newchat:hover{border-color:var(--cyan);color:var(--cyan)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
 
-/* ── HOME ──────────────────────────────────────────────────────────────── */
-#home{display:flex;flex-direction:column;align-items:center;justify-content:center;
-  min-height:100vh;padding:80px 20px 40px;text-align:center;position:relative;z-index:1}
-#home.gone{display:none}
+/* ── THREAD ───────────────────────────────────────────────────────────────── */
+#thread{flex:1;overflow-y:auto;display:flex;flex-direction:column}
+#thread-inner{width:100%;max-width:780px;margin:0 auto;padding:32px 20px 20px;
+  display:flex;flex-direction:column;gap:0;flex:1}
 
-.hero-eye{font-size:10px;font-weight:700;letter-spacing:4px;text-transform:uppercase;
-  color:var(--cyan);opacity:.75;margin-bottom:18px}
-.hero-logo{font-size:clamp(50px,9vw,84px);font-weight:900;letter-spacing:-2px;line-height:1;
-  margin-bottom:6px;
-  background:linear-gradient(140deg,#fff 0%,var(--cyan) 42%,var(--purple) 100%);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-  animation:logopulse 4s ease-in-out infinite alternate}
-@keyframes logopulse{
-  from{filter:drop-shadow(0 0 18px rgba(0,212,255,.3))}
-  to{filter:drop-shadow(0 0 42px rgba(0,212,255,.55))}}
-.hero-sub{font-size:12px;color:var(--t3);letter-spacing:3px;text-transform:uppercase;
-  margin-bottom:44px;font-weight:500}
+/* Welcome */
+#welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  flex:1;padding:60px 20px 20px;text-align:center}
+.wlc-icon{font-size:52px;margin-bottom:18px}
+.wlc-title{font-size:28px;font-weight:800;letter-spacing:-0.5px;margin-bottom:8px;
+  background:linear-gradient(135deg,var(--t1),var(--t2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.wlc-sub{font-size:15px;color:var(--t3);margin-bottom:36px}
+.wlc-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;max-width:520px;width:100%}
+.wcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  padding:14px 16px;cursor:pointer;transition:var(--tr);text-align:left;
+  display:flex;flex-direction:column;gap:6px}
+.wcard:hover{border-color:rgba(139,92,246,.35);background:var(--surface2);transform:translateY(-1px)}
+.wcard-ico{font-size:18px}
+.wcard-txt{font-size:13px;color:var(--t2);line-height:1.4}
 
-/* search box */
-.sbox{width:100%;max-width:660px;
-  background:var(--glass);border:1px solid var(--border);border-radius:var(--rl);
-  padding:6px 6px 6px 18px;display:flex;align-items:center;gap:8px;
-  box-shadow:var(--glow),0 4px 36px rgba(0,0,0,.4);
-  backdrop-filter:blur(18px);transition:border-color .3s,box-shadow .3s}
-.sbox:focus-within{border-color:var(--cyan);box-shadow:0 0 38px rgba(0,212,255,.32),0 4px 36px rgba(0,0,0,.4)}
-.sbox .si{font-size:17px;color:var(--t3);flex-shrink:0}
-.sbox input{flex:1;background:none;border:none;outline:none;
-  font-size:16px;color:var(--t1);font-family:inherit;caret-color:var(--cyan)}
-.sbox input::placeholder{color:var(--t3)}
-.sbox .sg{display:flex;gap:6px;flex-shrink:0}
-.btn-search{height:42px;padding:0 18px;
-  background:linear-gradient(135deg,var(--cyan),var(--blue));
-  border:none;border-radius:var(--r);color:#fff;font-size:13px;font-weight:700;
-  cursor:pointer;transition:var(--tr);letter-spacing:.4px}
-.btn-search:hover{opacity:.86;transform:translateY(-1px)}
-.btn-mic{width:42px;height:42px;border-radius:var(--r);
-  background:var(--bg2);border:1px solid var(--border2);
-  color:var(--t2);font-size:17px;cursor:pointer;transition:var(--tr);
-  display:grid;place-items:center}
-.btn-mic:hover{border-color:var(--cyan);color:var(--cyan)}
-.btn-mic.rec{background:var(--red);border-color:var(--red);color:#fff;
-  animation:mics 1s ease-in-out infinite}
-@keyframes mics{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.4)}50%{box-shadow:0 0 0 7px transparent}}
+/* Message turns */
+.turn{display:flex;flex-direction:column;gap:2px;padding:6px 0}
 
-/* chips */
-.chips{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;
-  margin-top:22px;max-width:660px}
-.chip{padding:5px 13px;background:var(--bg2);border:1px solid var(--border2);
-  border-radius:18px;font-size:11px;color:var(--t2);cursor:pointer;
-  transition:var(--tr);white-space:nowrap}
-.chip:hover{border-color:var(--cyan);color:var(--cyan);background:rgba(0,212,255,.06)}
+/* User message */
+.msg-user{display:flex;justify-content:flex-end;padding:4px 0}
+.mu-bubble{max-width:75%;background:var(--user-bg);border:1px solid var(--user-border);
+  border-radius:18px 18px 4px 18px;padding:12px 16px;font-size:14.5px;
+  color:var(--t1);line-height:1.6;word-break:break-word;white-space:pre-wrap}
 
-/* sys cards */
-/* sc-fill kept for sidebar bars */
-.sc-fill{height:100%;border-radius:2px;
-  background:linear-gradient(90deg,var(--cyan),var(--blue));transition:width .8s ease}
-.sc-fill.warn{background:linear-gradient(90deg,var(--yellow),#f97316)}
-.sc-fill.crit{background:linear-gradient(90deg,var(--red),#dc2626)}
-
-/* ── Recent chats (home page) ────────────────────────────────────────────── */
-.rcards{width:100%;max-width:660px;margin-top:32px;text-align:left}
-.rcards-lbl{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
-  color:var(--t3);margin-bottom:10px;padding-left:2px}
-.rcards-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px}
-.rc{display:flex;align-items:flex-start;gap:10px;
-  background:var(--glass2);border:1px solid var(--border2);border-radius:var(--r);
-  padding:12px 14px;cursor:pointer;transition:var(--tr);backdrop-filter:blur(10px)}
-.rc:hover{border-color:var(--border);background:rgba(0,212,255,.05);transform:translateY(-1px)}
-.rc-ico{font-size:15px;flex-shrink:0;margin-top:1px;opacity:.75}
-.rc-body{min-width:0}
-.rc-q{font-size:13px;color:var(--t1);line-height:1.4;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
-.rc-preview{font-size:11px;color:var(--t3);margin-top:3px;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
-
-/* ── RESULTS layout ────────────────────────────────────────────────────── */
-#results{display:none;padding-top:60px;min-height:100vh;position:relative;z-index:1}
-#results.on{display:grid;grid-template-columns:1fr 300px}
-@media(max-width:880px){#results.on{grid-template-columns:1fr}.sidebar{display:none}}
-
-/* ── Answer column ─────────────────────────────────────────────────────── */
-.acol{padding:26px 28px 100px;max-width:760px}
-
-.qhdr{margin-bottom:24px}
-.qlbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:7px}
-.qtxt{font-size:22px;font-weight:700;line-height:1.3}
-.bbadge{display:inline-flex;align-items:center;gap:5px;margin-top:8px;
-  padding:3px 10px;border-radius:11px;font-size:11px;font-weight:700;
-  border:1px solid rgba(0,212,255,.28);background:rgba(0,212,255,.07);color:var(--cyan)}
-.bbadge.local{border-color:rgba(16,185,129,.28);background:rgba(16,185,129,.07);color:var(--green)}
-.bbadge.warn{border-color:rgba(245,158,11,.28);background:rgba(245,158,11,.07);color:var(--yellow)}
-
-/* answer card */
-.acard{background:var(--glass2);border:1px solid var(--border2);border-radius:var(--r);
-  padding:24px;backdrop-filter:blur(10px);position:relative;overflow:hidden;margin-bottom:18px}
-.acard::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;
-  background:linear-gradient(90deg,transparent,var(--cyan),transparent);opacity:.45}
-.acard-hdr{display:flex;align-items:center;gap:9px;margin-bottom:18px}
-.avatar{width:34px;height:34px;border-radius:9px;
+/* AI message */
+.msg-ai{display:flex;gap:12px;padding:4px 0 0}
+.ai-av{width:30px;height:30px;border-radius:8px;flex-shrink:0;margin-top:2px;
   background:linear-gradient(135deg,var(--cyan),var(--purple));
-  display:grid;place-items:center;font-size:15px;flex-shrink:0;box-shadow:var(--glow-sm)}
-.aname{font-size:12px;font-weight:700;color:var(--cyan)}
-.amodel{font-size:10px;color:var(--t3);margin-top:1px}
-.sind{margin-left:auto;display:flex;align-items:center;gap:5px;
-  font-size:11px;color:var(--cyan);font-weight:600;opacity:0;transition:var(--tr)}
-.sind.on{opacity:1}
-.sdot{width:6px;height:6px;background:var(--cyan);border-radius:50%;
-  animation:blink 1s ease-in-out infinite}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
+  display:grid;place-items:center;font-size:14px}
+.ai-body{flex:1;min-width:0}
+.ai-name{font-size:12px;font-weight:700;color:var(--cyan);margin-bottom:6px;letter-spacing:.3px}
+.ai-content{font-size:14.5px;color:var(--t1);line-height:1.75;word-break:break-word}
+.ai-content p{margin-bottom:12px}
+.ai-content p:last-child{margin-bottom:0}
+.ai-content h1,.ai-content h2,.ai-content h3{margin:18px 0 8px;font-weight:700;line-height:1.3}
+.ai-content h1{font-size:20px}
+.ai-content h2{font-size:17px}
+.ai-content h3{font-size:15px;color:var(--t2)}
+.ai-content ul,.ai-content ol{padding-left:20px;margin-bottom:12px}
+.ai-content li{margin-bottom:4px}
+.ai-content blockquote{border-left:3px solid var(--purple);padding-left:14px;color:var(--t3);margin:12px 0;font-style:italic}
+.ai-content table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+.ai-content th,.ai-content td{border:1px solid var(--border2);padding:8px 12px;text-align:left}
+.ai-content th{background:var(--surface);font-weight:700;color:var(--t2)}
+.ai-content pre{position:relative;margin:12px 0;border-radius:10px;overflow:hidden;background:#161b22}
+.ai-content code:not(pre code){background:rgba(255,255,255,.08);border-radius:4px;
+  padding:2px 6px;font-size:13px;font-family:'Fira Code',monospace}
+.cpybtn{position:absolute;top:8px;right:8px;padding:4px 10px;border-radius:6px;
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);
+  color:var(--t2);font-size:11px;cursor:pointer;transition:var(--tr)}
+.cpybtn:hover{background:rgba(255,255,255,.14);color:var(--t1)}
 
-/* markdown */
-#answer{font-size:14.5px;line-height:1.82;color:var(--t1);min-height:38px}
-#answer p{margin-bottom:14px}
-#answer p:last-child{margin-bottom:0}
-#answer h1,h2,h3,h4{margin:22px 0 10px;font-weight:700}
-#answer h1{font-size:20px}
-#answer h2{font-size:17px;border-bottom:1px solid var(--border2);padding-bottom:7px}
-#answer h3{font-size:15px}
-#answer ul,ol{margin:10px 0 10px 22px}
-#answer li{margin-bottom:5px}
-#answer strong{color:var(--t1);font-weight:700}
-#answer em{color:var(--t2)}
-#answer code:not(pre code){
-  background:var(--bg2);border:1px solid var(--border2);border-radius:5px;
-  padding:2px 7px;font-family:'JetBrains Mono','Fira Code',monospace;
-  font-size:12px;color:var(--cyan)}
-#answer pre{background:#0d1117;border:1px solid var(--border2);border-radius:var(--rs);
-  overflow:auto;margin:14px 0;position:relative}
-#answer pre code{font-family:'JetBrains Mono','Fira Code',monospace;font-size:12px;
-  display:block;padding:18px}
-#answer blockquote{border-left:3px solid var(--cyan);padding-left:14px;
-  margin:14px 0;color:var(--t2);font-style:italic}
-#answer table{width:100%;border-collapse:collapse;margin:14px 0}
-#answer th{background:var(--bg2);padding:9px 13px;border:1px solid var(--border2);
-  font-weight:700;text-align:left;color:var(--cyan);font-size:11px}
-#answer td{padding:7px 13px;border:1px solid var(--border2);font-size:12.5px}
-#answer tr:nth-child(even) td{background:rgba(255,255,255,.02)}
-#answer a{color:var(--cyan);text-decoration:none}
-#answer a:hover{text-decoration:underline}
-.cursor{display:inline-block;width:2px;height:1em;background:var(--cyan);
-  vertical-align:text-bottom;margin-left:2px;
-  animation:cur .75s step-end infinite}
-@keyframes cur{0%,100%{opacity:1}50%{opacity:0}}
-.cpybtn{position:absolute;top:8px;right:8px;padding:3px 9px;border-radius:5px;
-  background:var(--bg3);border:1px solid var(--border2);color:var(--t3);
-  font-size:10px;cursor:pointer;transition:var(--tr)}
-.cpybtn:hover{color:var(--cyan);border-color:var(--cyan)}
+/* Thinking cursor */
+.cursor{display:inline-block;width:2px;height:16px;background:var(--cyan);
+  border-radius:1px;margin-left:2px;vertical-align:middle;
+  animation:blink .7s step-end infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 
-/* action bar */
-.actbar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;
-  margin-top:16px;padding-top:14px;border-top:1px solid var(--border2)}
-.abtn{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:7px;
-  background:var(--bg2);border:1px solid var(--border2);
-  color:var(--t2);font-size:11px;font-weight:600;cursor:pointer;transition:var(--tr)}
-.abtn:hover{border-color:var(--cyan);color:var(--cyan)}
-.elapsed{margin-left:auto;font-size:10px;color:var(--t3)}
+/* Thinking indicator */
+.thinking{display:flex;align-items:center;gap:8px;color:var(--t3);font-size:14px;padding:4px 0}
+.thinking-dots{display:flex;gap:4px}
+.tdot{width:6px;height:6px;border-radius:50%;background:var(--t3);
+  animation:tdot 1.2s ease-in-out infinite}
+.tdot:nth-child(2){animation-delay:.2s}
+.tdot:nth-child(3){animation-delay:.4s}
+@keyframes tdot{0%,80%,100%{opacity:.2;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
 
-/* follow-ups */
-.fups{margin-bottom:20px}
-.fups-lbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:10px}
-.fups-row{display:flex;flex-wrap:wrap;gap:7px}
-.fchip{padding:7px 14px;border-radius:var(--rs);background:var(--glass2);
-  border:1px solid var(--border2);color:var(--t2);font-size:12px;cursor:pointer;transition:var(--tr)}
-.fchip:hover{border-color:var(--cyan);color:var(--cyan);background:rgba(0,212,255,.06)}
+/* AI footer */
+.ai-footer{display:flex;align-items:center;gap:6px;margin-top:10px;padding-top:8px;
+  border-top:1px solid var(--border);flex-wrap:wrap}
+.ai-src{font-size:11px;color:var(--t3);font-weight:600}
+.ai-time{font-size:11px;color:var(--t3)}
+.ai-btn{display:flex;align-items:center;gap:4px;padding:4px 9px;border-radius:6px;
+  background:none;border:1px solid var(--border);color:var(--t3);
+  font-size:11px;cursor:pointer;transition:var(--tr)}
+.ai-btn:hover{border-color:var(--border2);color:var(--t1);background:var(--surface)}
 
-/* history */
-.hist{margin-top:28px}
-.hist-lbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:14px}
-.hi{padding:13px 17px;margin-bottom:12px;background:var(--glass2);
-  border:1px solid var(--border2);border-radius:var(--r);opacity:.62;transition:var(--tr)}
-.hi:hover{opacity:.82}
-.hi-role{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px}
-.hi-role.user{color:var(--blue)}.hi-role.assistant{color:var(--cyan)}
-.hi-txt{font-size:12px;color:var(--t2);line-height:1.55}
+/* Follow-up chips */
+.ai-fups{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.fchip{padding:7px 13px;border-radius:20px;background:var(--surface);
+  border:1px solid var(--border);color:var(--t2);font-size:12px;
+  cursor:pointer;transition:var(--tr)}
+.fchip:hover{border-color:rgba(139,92,246,.4);color:var(--t1);background:var(--surface2)}
 
-/* follow-up input */
-.fbar{position:fixed;bottom:0;left:0;width:calc(100% - 300px);
-  padding:13px 28px;background:rgba(6,8,15,.96);backdrop-filter:blur(18px);
-  border-top:1px solid var(--border2);z-index:50}
-@media(max-width:880px){.fbar{width:100%}}
-.fbar-inner{display:flex;align-items:center;gap:7px;
-  background:var(--bg2);border:1px solid var(--border2);
-  border-radius:var(--r);padding:5px 5px 5px 14px;max-width:680px;transition:var(--tr)}
-.fbar-inner:focus-within{border-color:var(--cyan);box-shadow:var(--glow-sm)}
-.fbar-inner input{flex:1;background:none;border:none;outline:none;
-  font-size:13px;color:var(--t1);font-family:inherit;caret-color:var(--cyan)}
-.fbar-inner input::placeholder{color:var(--t3)}
-.btn-send{width:34px;height:34px;border-radius:7px;
-  background:linear-gradient(135deg,var(--cyan),var(--blue));
-  border:none;color:#fff;cursor:pointer;font-size:15px;
-  display:grid;place-items:center;transition:var(--tr);flex-shrink:0}
-.btn-send:hover{opacity:.84;transform:scale(1.05)}
-.btn-send:disabled{opacity:.35;cursor:not-allowed;transform:none}
+/* Error banner inline */
+.turn-error{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);
+  border-radius:10px;padding:12px 16px;color:#fca5a5;font-size:13px;margin:4px 0}
 
-/* ── Sidebar ───────────────────────────────────────────────────────────── */
-.sidebar{background:rgba(13,17,23,.7);border-left:1px solid var(--border2);
-  padding:24px 17px 80px;overflow-y:auto;
-  position:sticky;top:54px;height:calc(100vh - 54px)}
-.sb-sec{margin-bottom:28px}
-.sb-lbl{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);
-  margin-bottom:12px;font-weight:700;display:flex;align-items:center;gap:7px}
-.sb-lbl::after{content:'';flex:1;height:1px;background:var(--border2)}
-.mrow{margin-bottom:12px}
-.mtop{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
-.mname{font-size:11px;color:var(--t2)}
-.mval{font-size:11px;font-weight:700;color:var(--t1)}
-.mbar{height:3px;background:var(--bg3);border-radius:2px;overflow:hidden}
-.mfill{height:100%;border-radius:2px;
-  background:linear-gradient(90deg,var(--cyan),var(--blue));transition:width 1s ease}
-.mfill.warn{background:linear-gradient(90deg,var(--yellow),#f97316)}
-.mfill.crit{background:linear-gradient(90deg,var(--red),#dc2626)}
-.netrow{display:flex;justify-content:space-between;font-size:11px;color:var(--t2);
-  margin-bottom:6px;padding:5px 9px;background:var(--bg2);border-radius:5px}
-.nst{font-weight:700}.nst.up{color:var(--green)}.nst.down{color:var(--red)}
-.prow{display:flex;align-items:center;gap:7px;font-size:10px;margin-bottom:5px;color:var(--t2)}
-.pname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--t1)}
-.pcpu{color:var(--cyan);font-weight:600;width:36px;text-align:right}
-.pmem{color:var(--t3);width:36px;text-align:right}
-.me{padding:9px 11px;margin-bottom:7px;background:var(--bg2);
-  border:1px solid var(--border2);border-radius:var(--rs)}
-.me-role{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px}
-.me-role.user{color:var(--blue)}.me-role.assistant{color:var(--cyan)}
-.me-txt{font-size:11px;color:var(--t2);line-height:1.45}
+/* ── COMPOSER ─────────────────────────────────────────────────────────────── */
+#composer{flex-shrink:0;padding:12px 16px 16px;background:var(--bg)}
+#comp-inner{max-width:780px;margin:0 auto;
+  background:var(--surface);border:1px solid var(--border2);
+  border-radius:16px;overflow:hidden;transition:border-color var(--tr)}
+#comp-inner:focus-within{border-color:rgba(139,92,246,.35)}
 
-/* ── File upload ───────────────────────────────────────────────────────── */
-.btn-attach{width:42px;height:42px;border-radius:var(--r);
-  background:var(--bg2);border:1px solid var(--border2);
-  color:var(--t2);font-size:18px;cursor:pointer;transition:var(--tr);
-  display:grid;place-items:center;flex-shrink:0}
-.btn-attach:hover{border-color:var(--cyan);color:var(--cyan)}
-.btn-attach.has-file{border-color:var(--cyan);color:var(--cyan);
-  background:rgba(0,212,255,.1)}
-.btn-attach-sm{width:32px;height:32px;border-radius:7px;font-size:15px;
-  background:var(--bg2);border:1px solid var(--border2);
-  color:var(--t2);cursor:pointer;transition:var(--tr);
-  display:grid;place-items:center;flex-shrink:0}
-.btn-attach-sm:hover{border-color:var(--cyan);color:var(--cyan)}
-.btn-attach-sm.has-file{border-color:var(--cyan);color:var(--cyan)}
+#comp-files{max-width:780px;margin:0 auto 8px;display:flex;flex-wrap:wrap;gap:6px}
+#comp-files:empty{display:none}
 
-/* file preview strip */
-.file-strip{display:none;flex-wrap:wrap;gap:8px;
-  width:100%;max-width:660px;margin-top:12px}
-.file-strip.on{display:flex}
-.fchip-file{display:flex;align-items:center;gap:7px;
-  padding:6px 10px 6px 8px;border-radius:var(--rs);
-  background:var(--bg2);border:1px solid var(--border2);
-  font-size:12px;color:var(--t2);max-width:200px}
-.fchip-file .ficon{font-size:16px;flex-shrink:0}
-.fchip-file .fname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
-.fchip-file .fsize{font-size:10px;color:var(--t3);white-space:nowrap}
-.fchip-file .fclose{margin-left:4px;cursor:pointer;color:var(--t3);
-  font-size:14px;flex-shrink:0;line-height:1}
-.fchip-file .fclose:hover{color:var(--red)}
-.fchip-file.image-chip{border-color:rgba(0,212,255,.25);background:rgba(0,212,255,.05)}
-.img-thumb{width:36px;height:36px;object-fit:cover;border-radius:5px;flex-shrink:0}
-.vision-badge{display:inline-flex;align-items:center;gap:4px;
-  font-size:10px;color:var(--purple);background:rgba(139,92,246,.1);
-  border:1px solid rgba(139,92,246,.2);border-radius:8px;
-  padding:2px 7px;margin-left:4px}
+.comp-file-chip{display:flex;align-items:center;gap:6px;padding:5px 10px;
+  background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--t2)}
+.comp-file-chip img{width:28px;height:28px;object-fit:cover;border-radius:4px}
+.comp-file-chip .cfc-rm{cursor:pointer;color:var(--t3);margin-left:2px;font-size:14px;line-height:1}
+.comp-file-chip .cfc-rm:hover{color:var(--red)}
+.vision-badge{display:flex;align-items:center;gap:5px;padding:4px 10px;
+  background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.2);
+  border-radius:8px;font-size:11px;color:var(--cyan);font-weight:700}
 
-/* results file strip (above follow-up bar) */
-.fbar-files{display:none;flex-wrap:wrap;gap:7px;margin-bottom:8px}
-.fbar-files.on{display:flex}
+#comp-row{display:flex;align-items:flex-end;gap:4px;padding:8px 8px 8px 4px}
+.comp-btn{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;
+  background:none;border:none;color:var(--t3);font-size:16px;cursor:pointer;
+  transition:var(--tr);flex-shrink:0}
+.comp-btn:hover{color:var(--t1);background:var(--surface2)}
+.comp-btn.active{color:var(--red)}
 
-/* drag & drop overlay */
-#drag-overlay{display:none;position:fixed;inset:0;z-index:500;
-  background:rgba(6,8,15,.88);backdrop-filter:blur(8px);
-  align-items:center;justify-content:center;flex-direction:column;gap:16px}
-#drag-overlay.on{display:flex}
-.drag-box{border:2px dashed var(--cyan);border-radius:24px;
-  padding:60px 80px;text-align:center;
-  animation:drag-pulse 1.5s ease-in-out infinite alternate}
-@keyframes drag-pulse{from{box-shadow:0 0 20px rgba(0,212,255,.2)}to{box-shadow:0 0 50px rgba(0,212,255,.5)}}
-.drag-icon{font-size:56px;margin-bottom:12px}
-.drag-title{font-size:22px;font-weight:700;color:var(--cyan);margin-bottom:6px}
-.drag-sub{font-size:13px;color:var(--t3)}
+#ta{flex:1;background:none;border:none;color:var(--t1);font-size:14.5px;
+  font-family:inherit;line-height:1.6;resize:none;outline:none;
+  padding:6px 4px;max-height:200px;min-height:36px;overflow-y:auto}
+#ta::placeholder{color:var(--t3)}
 
-/* ── Error / toast / offline ───────────────────────────────────────────── */
-.ebanner{display:none;align-items:center;gap:9px;padding:10px 14px;
-  border-radius:var(--rs);margin-bottom:14px;
-  background:rgba(239,68,68,.09);border:1px solid rgba(239,68,68,.28);
-  color:var(--red);font-size:12px}
-.ebanner.on{display:flex}
-#offline{display:none;position:fixed;top:54px;left:0;right:0;z-index:90;
-  background:rgba(239,68,68,.12);border-bottom:1px solid rgba(239,68,68,.28);
-  padding:7px 20px;text-align:center;font-size:12px;color:var(--red)}
-#offline.on{display:block}
-#toasts{position:fixed;bottom:76px;right:20px;z-index:200;display:flex;flex-direction:column;gap:7px}
-.toast{padding:9px 14px;border-radius:var(--rs);background:var(--bg2);
-  border:1px solid var(--border2);color:var(--t1);font-size:12px;
-  animation:tin .25s ease;max-width:260px}
-@keyframes tin{from{opacity:0;transform:translateX(16px)}}
-.toast.ok{border-color:rgba(16,185,129,.4);color:var(--green)}
-.toast.err{border-color:rgba(239,68,68,.4);color:var(--red)}
+#send-btn{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;
+  background:var(--purple);border:none;color:#fff;cursor:pointer;
+  font-size:16px;transition:var(--tr);flex-shrink:0;opacity:.4}
+#send-btn:not(:disabled){opacity:1}
+#send-btn:not(:disabled):hover{background:#7c3aed;transform:scale(1.05)}
+#send-btn:disabled{cursor:not-allowed}
 
-/* ── Settings modal ────────────────────────────────────────────────────── */
+#comp-hint{padding:0 12px 8px;font-size:10px;color:var(--t3);text-align:center}
+
+/* ── SETTINGS MODAL ──────────────────────────────────────────────────────── */
 #settings-modal{display:none;position:fixed;inset:0;z-index:300;
-  background:rgba(6,8,15,.85);backdrop-filter:blur(10px);
+  background:rgba(0,0,0,.65);backdrop-filter:blur(6px);
   align-items:center;justify-content:center}
 #settings-modal.on{display:flex}
-.sm-box{background:var(--bg1);border:1px solid var(--border2);border-radius:var(--r);
-  padding:28px;width:100%;max-width:440px;position:relative}
-.sm-title{font-size:15px;font-weight:700;color:var(--t1);margin-bottom:20px;
-  display:flex;align-items:center;gap:9px}
-.sm-title .icon{width:28px;height:28px;border-radius:7px;
-  background:linear-gradient(135deg,var(--cyan),var(--purple));
-  display:grid;place-items:center;font-size:13px}
-.sm-close{position:absolute;top:16px;right:16px;background:none;border:none;
-  color:var(--t3);font-size:18px;cursor:pointer;transition:var(--tr)}
-.sm-close:hover{color:var(--red)}
+.sm-box{background:var(--surface);border:1px solid var(--border2);border-radius:18px;
+  padding:28px;width:min(480px,94vw);max-height:90vh;overflow-y:auto;position:relative}
+.sm-close{position:absolute;top:16px;right:16px;width:28px;height:28px;border-radius:7px;
+  background:var(--surface2);border:none;color:var(--t2);cursor:pointer;font-size:16px;
+  display:grid;place-items:center;transition:var(--tr)}
+.sm-close:hover{color:var(--t1);background:rgba(239,68,68,.2)}
+.sm-title{display:flex;align-items:center;gap:10px;margin-bottom:22px;font-size:16px;font-weight:800}
+.sm-title .icon{font-size:20px}
 .sm-field{margin-bottom:16px}
-.sm-label{font-size:11px;color:var(--t2);font-weight:600;margin-bottom:6px;
+.sm-label{font-size:12px;font-weight:700;color:var(--t3);margin-bottom:6px;
   display:flex;align-items:center;justify-content:space-between}
-.sm-label a{font-size:10px;color:var(--cyan);text-decoration:none;opacity:.8}
-.sm-label a:hover{opacity:1}
-.sm-input{width:100%;padding:9px 12px;background:var(--bg2);
-  border:1px solid var(--border2);border-radius:var(--rs);
-  color:var(--t1);font-size:12px;outline:none;font-family:monospace;
-  transition:var(--tr)}
-.sm-input:focus{border-color:var(--cyan);box-shadow:var(--glow-sm)}
-.sm-row{display:flex;gap:9px;margin-top:4px}
-.btn-sm{flex:1;padding:9px;border-radius:var(--rs);font-size:12px;font-weight:700;
-  cursor:pointer;transition:var(--tr);border:1px solid}
-.btn-test{background:transparent;border-color:var(--border2);color:var(--t2)}
-.btn-test:hover{border-color:var(--cyan);color:var(--cyan)}
-.btn-save{background:linear-gradient(135deg,var(--cyan),var(--blue));
-  border-color:transparent;color:#fff}
-.btn-save:hover{opacity:.88}
-.sm-status{font-size:11px;margin-top:10px;padding:7px 10px;border-radius:5px;display:none}
-.sm-status.on{display:block}
-.sm-status.ok{background:rgba(16,185,129,.1);color:var(--green);border:1px solid rgba(16,185,129,.2)}
-.sm-status.err{background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.2)}
-.sm-divider{height:1px;background:var(--border2);margin:18px 0}
-.sm-models-lbl{font-size:10px;color:var(--t3);margin-bottom:8px;letter-spacing:.5px}
-.sm-model-list{display:flex;flex-direction:column;gap:5px;max-height:180px;overflow-y:auto}
-.sml{display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:5px;
-  font-size:11px;color:var(--t2);cursor:pointer;transition:var(--tr);
-  border:1px solid transparent}
-.sml:hover{border-color:var(--border2);background:var(--bg2)}
-.sml.active{border-color:rgba(0,212,255,.25);background:rgba(0,212,255,.07);color:var(--cyan)}
-.sml-dot{width:7px;height:7px;border-radius:50%;background:var(--t3);flex-shrink:0}
-.sml-dot.ok{background:var(--green);box-shadow:0 0 5px var(--green)}
-.sml-dot.fail{background:var(--red)}
-.sml-dot.trying{background:var(--yellow);animation:blink 1s ease-in-out infinite}
+.sm-label a{color:var(--cyan);text-decoration:none;font-size:11px}
+.sm-label a:hover{text-decoration:underline}
+.sm-input{width:100%;padding:9px 13px;background:var(--sb-bg);border:1px solid var(--border2);
+  border-radius:9px;color:var(--t1);font-size:13px;outline:none;transition:var(--tr)}
+.sm-input:focus{border-color:var(--purple)}
+.sm-row{display:flex;gap:10px;margin-top:4px}
+.btn-sm{padding:9px 18px;border-radius:9px;font-size:12px;font-weight:700;
+  cursor:pointer;transition:var(--tr);border:1px solid var(--border2)}
+.btn-test{background:var(--surface2);color:var(--t2)}
+.btn-test:hover{color:var(--t1);border-color:var(--border2)}
+.btn-save{background:var(--purple);color:#fff;border-color:var(--purple);flex:1}
+.btn-save:hover{background:#7c3aed}
+.sm-status{font-size:12px;margin-top:8px;min-height:18px;color:var(--t3)}
+.sm-status.ok{color:var(--green)}.sm-status.err{color:var(--red)}
+.sm-divider{height:1px;background:var(--border);margin:18px 0}
+.sm-models-lbl{font-size:11px;color:var(--t3);font-weight:700;margin-bottom:10px}
+.sm-model-list{display:flex;flex-direction:column;gap:6px;max-height:160px;overflow-y:auto}
+.sm-model-item{display:flex;align-items:center;justify-content:space-between;
+  padding:7px 10px;border-radius:8px;background:var(--sb-bg);
+  border:1px solid var(--border);cursor:pointer;transition:var(--tr);font-size:12px}
+.sm-model-item:hover{border-color:var(--border2)}
+.sm-model-item.active{border-color:var(--cyan);background:rgba(0,212,255,.06)}
+.sm-model-name{font-weight:600;color:var(--t1)}
+.sm-model-ctx{color:var(--t3)}
+.sm-model-status{font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(16,185,129,.15);color:var(--green)}
+.sm-model-status.fail{background:rgba(239,68,68,.12);color:var(--red)}
 
-/* misc */
-.fade{animation:fade .35s ease}
-@keyframes fade{from{opacity:0;transform:translateY(7px)}}
+/* ── DRAG OVERLAY ────────────────────────────────────────────────────────── */
+#drag-overlay{display:none;position:fixed;inset:0;z-index:500;
+  background:rgba(13,13,17,.88);backdrop-filter:blur(4px);
+  align-items:center;justify-content:center}
+#drag-overlay.on{display:flex}
+.drag-box{border:2px dashed rgba(139,92,246,.5);border-radius:20px;
+  padding:48px 60px;text-align:center;pointer-events:none}
+.drag-ico{font-size:52px;margin-bottom:12px}
+.drag-title{font-size:20px;font-weight:700;color:var(--t1);margin-bottom:6px}
+.drag-sub{font-size:13px;color:var(--t3)}
+
+/* ── TOASTS ──────────────────────────────────────────────────────────────── */
+#toasts{position:fixed;bottom:90px;right:20px;z-index:999;display:flex;flex-direction:column;gap:6px}
+.toast{padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;
+  background:var(--surface2);border:1px solid var(--border2);color:var(--t1);
+  animation:toastin .2s ease,toastout .3s ease 2.5s forwards;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+.toast.ok{border-color:rgba(16,185,129,.4);color:var(--green)}
+.toast.err{border-color:rgba(239,68,68,.3);color:#fca5a5}
+@keyframes toastin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes toastout{to{opacity:0;transform:translateY(-4px)}}
+
+/* ── MOBILE ──────────────────────────────────────────────────────────────── */
+@media(max-width:700px){
+  #sidebar{position:fixed;left:0;top:0;bottom:0;z-index:200;transform:translateX(calc(-1 * var(--sb-w)))}
+  #sidebar.open{transform:none;box-shadow:4px 0 24px rgba(0,0,0,.6)}
+  .wlc-grid{grid-template-columns:1fr}
+  .mu-bubble{max-width:90%}
+}
 </style>
 </head>
 <body>
 
-<div class="bg-grid"></div>
-<div class="orb orb1"></div>
-<div class="orb orb2"></div>
-<div id="toasts"></div>
-<div id="offline">⚠ No AI provider connected — open ⚙ to add a key</div>
-
-<!-- hidden file input -->
+<!-- Hidden inputs -->
 <input type="file" id="file-input" multiple
-  accept="image/*,.pdf,.txt,.md,.py,.js,.ts,.jsx,.tsx,.html,.css,.json,.yaml,.yml,.toml,.sh,.bash,.zsh,.csv,.xml,.sql,.rs,.go,.java,.c,.cpp,.h,.hpp,.rb,.php,.swift,.kt,.dart,.r,.m"
+  accept="image/*,.pdf,.txt,.md,.py,.js,.ts,.jsx,.tsx,.html,.css,.json,.yaml,.yml,.toml,.sh,.bash,.zsh,.csv,.xml,.sql,.rs,.go,.java,.c,.cpp,.h,.hpp,.rb,.php,.swift,.kt,.dart,.r,.m,.nix,.env"
   style="display:none"/>
-<!-- hidden folder input -->
 <input type="file" id="folder-input" webkitdirectory multiple style="display:none"/>
 
-<!-- drag & drop overlay -->
+<!-- Drag overlay -->
 <div id="drag-overlay">
   <div class="drag-box">
-    <div class="drag-icon">📂</div>
-    <div class="drag-title">Drop anything here</div>
-    <div class="drag-sub">Images · Code · PDF · CSV · Folders · Any text file</div>
+    <div class="drag-ico">📂</div>
+    <div class="drag-title">Drop anywhere</div>
+    <div class="drag-sub">Images · Code · PDF · Folders</div>
   </div>
 </div>
 
-<!-- ══ Navbar ═══════════════════════════════════════════════════════════ -->
-<nav id="nav">
-  <a class="nav-brand" href="#" onclick="goHome();return false">
-    <div class="nav-logo">J</div>
-    <span class="nav-title">JARVIS</span>
-  </a>
+<!-- Toasts -->
+<div id="toasts"></div>
 
-  <div id="nav-search">
-    <div class="nsw">
-      <span class="ni-icon">🔍</span>
-      <input id="nav-inp" type="text" placeholder="Ask JARVIS…" autocomplete="off"/>
-      <button class="ni-mic" id="nav-mic">🎤</button>
+<!-- ══ SIDEBAR ════════════════════════════════════════════════════════════ -->
+<aside id="sidebar">
+  <div class="sb-head">
+    <div class="brand">
+      <div class="brand-ico">J</div>
+      <span class="brand-txt">JARVIS</span>
     </div>
+    <button class="new-btn" onclick="newChat()">
+      <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      New chat
+    </button>
   </div>
 
-  <div class="nav-right">
-    <!-- active model chip -->
+  <div class="sb-divider"></div>
+  <div class="sb-section-lbl" id="sb-lbl" style="display:none">Recent</div>
+  <div id="sb-list"></div>
+
+  <div class="sb-foot">
+    <div id="mem-badge" class="sb-mem" title="Click to clear memory" onclick="clearMemory()">🧠</div>
+    <button class="sb-settings" onclick="openSettings()">⚙ Settings</button>
+  </div>
+</aside>
+
+<!-- ══ MAIN ════════════════════════════════════════════════════════════════ -->
+<div id="main">
+
+  <!-- Topbar -->
+  <div id="topbar">
+    <button class="tb-toggle" id="sb-toggle" onclick="toggleSidebar()" title="Toggle sidebar">
+      <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
     <div class="model-chip connecting" id="model-chip">
       <div class="mdot"></div>
       <span id="model-name">Connecting…</span>
     </div>
-    <button class="btn-newchat" id="btn-new" onclick="newChat()">✦ New</button>
-    <div class="btn-icon" id="mem-badge" title="No memory yet" onclick="clearMemory()">🧠</div>
-    <div class="btn-icon" title="API Settings" onclick="openSettings()">⚙</div>
-  </div>
-</nav>
-
-<!-- ══ HOME ══════════════════════════════════════════════════════════════ -->
-<div id="home">
-  <p class="hero-eye">Your Personal AI</p>
-  <h1 class="hero-logo">JARVIS</h1>
-  <p class="hero-sub">Whatever you need — just ask</p>
-
-  <div class="sbox">
-    <span class="si">🔍</span>
-    <input id="home-inp" type="text" placeholder="What do you need? JARVIS will handle it." autocomplete="off"/>
-    <div class="sg">
-      <button class="btn-attach" id="home-attach" title="Attach file / image">📎</button>
-      <button class="btn-attach" id="home-folder" title="Upload folder">📁</button>
-      <button class="btn-search" id="home-btn">Ask</button>
-      <button class="btn-mic" id="home-mic">🎤</button>
-    </div>
-  </div>
-  <!-- file preview strip (home) -->
-  <div class="file-strip" id="home-file-strip"></div>
-
-  <div class="chips">
-    <span class="chip" onclick="qs(this)">Write me a Python script</span>
-    <span class="chip" onclick="qs(this)">Explain quantum computing</span>
-    <span class="chip" onclick="qs(this)">Fix my NixOS config</span>
-    <span class="chip" onclick="qs(this)">Plan my week</span>
-    <span class="chip" onclick="qs(this)">Debug this error</span>
-    <span class="chip" onclick="qs(this)">System health check</span>
   </div>
 
-  <!-- recent chats (replaces system metric cards) -->
-  <div class="rcards" id="rcards" style="display:none">
-    <div class="rcards-lbl">💬 Recent</div>
-    <div class="rcards-list" id="rcards-list"></div>
-  </div>
-</div>
+  <!-- Thread -->
+  <div id="thread">
+    <div id="thread-inner">
 
-<!-- ══ RESULTS ════════════════════════════════════════════════════════════ -->
-<div id="results">
-  <!-- answer column -->
-  <div class="acol">
-    <div class="qhdr fade">
-      <div class="qlbl">Your question</div>
-      <div class="qtxt" id="r-query"></div>
-      <div class="bbadge" id="bbadge">⚡ Loading…</div>
-    </div>
-    <div class="ebanner" id="ebanner">⚠ <span id="emsg"></span></div>
-    <div class="acard fade">
-      <div class="acard-hdr">
-        <div class="avatar">🤖</div>
-        <div>
-          <div class="aname">JARVIS</div>
-          <div class="amodel" id="amodel">Processing…</div>
+      <!-- Welcome screen -->
+      <div id="welcome">
+        <div class="wlc-icon">🤖</div>
+        <h1 class="wlc-title">JARVIS</h1>
+        <p class="wlc-sub">Just A Rather Very Intelligent System</p>
+        <div class="wlc-grid">
+          <div class="wcard" onclick="quickSend(this)">
+            <div class="wcard-ico">💻</div>
+            <div class="wcard-txt">Write a Python script for automating tasks</div>
+          </div>
+          <div class="wcard" onclick="quickSend(this)">
+            <div class="wcard-ico">🔬</div>
+            <div class="wcard-txt">Explain quantum entanglement simply</div>
+          </div>
+          <div class="wcard" onclick="quickSend(this)">
+            <div class="wcard-ico">🐧</div>
+            <div class="wcard-txt">Help me configure NixOS declaratively</div>
+          </div>
+          <div class="wcard" onclick="quickSend(this)">
+            <div class="wcard-ico">🧮</div>
+            <div class="wcard-txt">Solve a differential equation step by step</div>
+          </div>
         </div>
-        <div class="sind" id="sind"><div class="sdot"></div> Thinking…</div>
       </div>
-      <div id="answer"></div>
-      <div class="actbar">
-        <button class="abtn" onclick="copyAns()">📋 Copy</button>
-        <button class="abtn" onclick="speakAns()">🔊 Speak</button>
-        <button class="abtn" onclick="shareAns()">🔗 Share</button>
-        <span class="elapsed" id="elapsed"></span>
+
+    </div><!-- /thread-inner -->
+  </div><!-- /thread -->
+
+  <!-- Composer -->
+  <div id="composer">
+    <div id="comp-files"></div>
+    <div id="comp-inner">
+      <div id="comp-row">
+        <button class="comp-btn" id="attach-btn" title="Attach file (📎)">📎</button>
+        <button class="comp-btn" id="folder-btn" title="Upload folder (📁)">📁</button>
+        <textarea id="ta" placeholder="Message JARVIS…" rows="1"></textarea>
+        <button class="comp-btn" id="mic-btn">🎤</button>
+        <button id="send-btn" disabled title="Send (Enter)">↑</button>
       </div>
-    </div>
-    <div class="fups" id="fups" style="display:none">
-      <div class="fups-lbl">💡 Follow-up</div>
-      <div class="fups-row" id="fups-row"></div>
-    </div>
-    <div class="hist" id="hist" style="display:none">
-      <div class="hist-lbl">Conversation</div>
-      <div id="hist-list"></div>
+      <div id="comp-hint">Enter to send · Shift+Enter for new line · Ctrl+V to paste image</div>
     </div>
   </div>
 
-  <!-- sidebar -->
-  <aside class="sidebar">
-    <div class="sb-sec">
-      <div class="sb-lbl">System</div>
-      <div class="mrow"><div class="mtop"><span class="mname">CPU</span><span class="mval" id="s-cpu">—</span></div>
-        <div class="mbar"><div class="mfill" id="s-cpu-b" style="width:0"></div></div></div>
-      <div class="mrow"><div class="mtop"><span class="mname">RAM</span><span class="mval" id="s-ram">—</span></div>
-        <div class="mbar"><div class="mfill" id="s-ram-b" style="width:0"></div></div></div>
-      <div class="mrow"><div class="mtop"><span class="mname">Disk /</span><span class="mval" id="s-disk">—</span></div>
-        <div class="mbar"><div class="mfill" id="s-disk-b" style="width:0"></div></div></div>
-      <div class="mrow"><div class="mtop"><span class="mname">Swap</span><span class="mval" id="s-swap">—</span></div>
-        <div class="mbar"><div class="mfill" id="s-swap-b" style="width:0"></div></div></div>
-      <div class="mrow"><div class="mtop"><span class="mname">Load</span><span class="mval" id="s-load">—</span></div></div>
-      <div class="mrow"><div class="mtop"><span class="mname">Uptime</span><span class="mval" id="s-up">—</span></div></div>
-      <div class="mrow"><div class="mtop"><span class="mname">Host</span><span class="mval" id="s-host">—</span></div></div>
-    </div>
-    <div class="sb-sec"><div class="sb-lbl">Network</div><div id="net-list"></div></div>
-    <div class="sb-sec"><div class="sb-lbl">Processes</div><div id="proc-list"></div></div>
-    <div class="sb-sec"><div class="sb-lbl">Memory</div><div id="mem-list"></div></div>
-  </aside>
-
-  <!-- follow-up bar -->
-  <div class="fbar">
-    <div class="fbar-files" id="fbar-files"></div>
-    <div class="fbar-inner">
-      <button class="btn-attach-sm" id="f-attach" title="Attach file">📎</button>
-      <button class="btn-attach-sm" id="f-folder" title="Upload folder">📁</button>
-      <input id="f-inp" type="text" placeholder="Continue — JARVIS is listening…" autocomplete="off"/>
-      <button class="btn-mic" id="f-mic" style="width:32px;height:32px;font-size:15px;border-radius:7px;flex-shrink:0">🎤</button>
-      <button class="btn-send" id="f-send" title="Send">➤</button>
-    </div>
-  </div>
-</div>
+</div><!-- /main -->
 
 <!-- ══ Settings modal ════════════════════════════════════════════════════ -->
 <div id="settings-modal">
@@ -609,24 +427,20 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
     <button class="sm-close" onclick="closeSettings()">✕</button>
     <div class="sm-title"><div class="icon">⚙</div>API Settings</div>
 
-    <!-- Groq (fastest) -->
     <div class="sm-field">
       <div class="sm-label">
         ⚡ Groq Key <span style="color:var(--green);font-size:10px">10× faster</span>
         <a href="https://console.groq.com/keys" target="_blank">Free key ↗</a>
       </div>
-      <input class="sm-input" id="groq-key-input" type="password"
-             placeholder="gsk_…" autocomplete="off"/>
+      <input class="sm-input" id="groq-key-input" type="password" placeholder="gsk_…" autocomplete="off"/>
     </div>
 
-    <!-- OpenRouter (more models) -->
     <div class="sm-field">
       <div class="sm-label">
         OpenRouter Key <span style="color:var(--t3);font-size:10px">27 free models</span>
         <a href="https://openrouter.ai/keys" target="_blank">Free key ↗</a>
       </div>
-      <input class="sm-input" id="or-key-input" type="password"
-             placeholder="sk-or-v1-…" autocomplete="off"/>
+      <input class="sm-input" id="or-key-input" type="password" placeholder="sk-or-v1-…" autocomplete="off"/>
     </div>
 
     <div class="sm-row">
@@ -636,12 +450,12 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
     <div class="sm-status" id="sm-status"></div>
 
     <div class="sm-divider"></div>
-    <div class="sm-models-lbl">Free models — ordered by speed (auto-rotate on failure)</div>
+    <div class="sm-models-lbl">Free models — ordered by speed</div>
     <div class="sm-model-list" id="sm-model-list"></div>
 
     <div class="sm-divider"></div>
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-      <div style="font-size:11px;color:var(--t3)">🧠 Conversation memory (persisted across sessions)</div>
+      <div style="font-size:11px;color:var(--t3)">🧠 Conversation memory</div>
       <button class="btn-sm" style="background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.3);color:#ef4444;padding:6px 12px;font-size:11px" onclick="clearMemory();closeSettings()">🗑 Clear Memory</button>
     </div>
   </div>
@@ -651,757 +465,250 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
 <script>
 'use strict';
 
-/* ── Free API config ─────────────────────────────────────────────────────
-   Priority order: best→fallback. Tested live at boot.
-   ──────────────────────────────────────────────────────────────────────── */
+/* ── Constants ───────────────────────────────────────────────────────────── */
 const OR_BASE   = 'https://openrouter.ai/api/v1';
 const GROQ_BASE = 'https://api.groq.com/openai/v1';
-// Groq models — live-tested, ordered by speed (ms to first token)
 const GROQ_MODELS = [
-  { id:'llama-3.3-70b-versatile',                  name:'Llama 3.3 70B',   ctx:'128k', ms:376  }, // ★ best
-  { id:'openai/gpt-oss-120b',                      name:'GPT-OSS 120B',    ctx:'131k', ms:372  },
-  { id:'meta-llama/llama-4-scout-17b-16e-instruct',name:'Llama 4 Scout',   ctx:'131k', ms:427  },
-  { id:'qwen/qwen3-32b',                           name:'Qwen3 32B',       ctx:'128k', ms:441  },
-  { id:'llama-3.1-8b-instant',                     name:'Llama 3.1 8B',    ctx:'128k', ms:457  }, // fastest fallback
-  { id:'groq/compound-mini',                       name:'Compound Mini',   ctx:'128k', ms:796  },
+  { id:'llama-3.3-70b-versatile',                   name:'Llama 3.3 70B',   ctx:'128k', ms:376 },
+  { id:'openai/gpt-oss-120b',                       name:'GPT-OSS 120B',    ctx:'131k', ms:372 },
+  { id:'meta-llama/llama-4-scout-17b-16e-instruct', name:'Llama 4 Scout',   ctx:'131k', ms:427 },
+  { id:'qwen/qwen3-32b',                            name:'Qwen3 32B',       ctx:'128k', ms:441 },
+  { id:'llama-3.1-8b-instant',                      name:'Llama 3.1 8B',    ctx:'128k', ms:457 },
+  { id:'groq/compound-mini',                        name:'Compound Mini',   ctx:'128k', ms:796 },
 ];
-
-// Ordered by SPEED (fastest confirmed first — live-tested)
 const FREE_MODELS = [
-  { id:'nvidia/nemotron-3-nano-30b-a3b:free',        name:'Nemotron Nano 30B', ctx:'256k' }, // ★ fastest
-  { id:'nvidia/nemotron-3-super-120b-a12b:free',     name:'Nemotron 120B',     ctx:'1M'   },
-  { id:'openrouter/free',                            name:'OR Auto-Free',      ctx:'200k' }, // OR picks fastest
-  { id:'google/gemma-4-31b-it:free',                name:'Gemma 4 31B',       ctx:'262k' },
-  { id:'deepseek/deepseek-v4-flash:free',            name:'DeepSeek V4 Flash', ctx:'1M'   },
-  { id:'meta-llama/llama-3.3-70b-instruct:free',     name:'Llama 3.3 70B',    ctx:'131k' },
-  { id:'qwen/qwen3-coder:free',                      name:'Qwen3 Coder',       ctx:'1M'   },
-  { id:'qwen/qwen3-next-80b-a3b-instruct:free',      name:'Qwen3 80B',         ctx:'262k' },
-  { id:'openai/gpt-oss-120b:free',                   name:'GPT-OSS 120B',      ctx:'131k' },
-  { id:'nousresearch/hermes-3-llama-3.1-405b:free',  name:'Hermes 405B',       ctx:'131k' },
+  { id:'nvidia/nemotron-3-nano-30b-a3b:free',       name:'Nemotron Nano 30B', ctx:'256k' },
+  { id:'nvidia/nemotron-3-super-120b-a12b:free',    name:'Nemotron 120B',     ctx:'1M'   },
+  { id:'openrouter/free',                           name:'OR Auto-Free',      ctx:'200k' },
+  { id:'google/gemma-4-31b-it:free',               name:'Gemma 4 31B',       ctx:'262k' },
+  { id:'deepseek/deepseek-v4-flash:free',           name:'DeepSeek V4 Flash', ctx:'1M'   },
+  { id:'meta-llama/llama-3.3-70b-instruct:free',    name:'Llama 3.3 70B',    ctx:'131k' },
+  { id:'qwen/qwen3-coder:free',                     name:'Qwen3 Coder',       ctx:'1M'   },
+  { id:'qwen/qwen3-next-80b-a3b-instruct:free',     name:'Qwen3 80B',         ctx:'262k' },
+  { id:'openai/gpt-oss-120b:free',                  name:'GPT-OSS 120B',      ctx:'131k' },
+  { id:'nousresearch/hermes-3-llama-3.1-405b:free', name:'Hermes 405B',       ctx:'131k' },
 ];
-
-// Add your keys via the ⚙ Settings button — or set them here for local use only
-// Get free keys: https://console.groq.com/keys  |  https://openrouter.ai/keys
+// Add your keys via ⚙ Settings — or set here for local use only
 const _DEFAULT_OR_KEY   = '';   // sk-or-v1-...
 const _DEFAULT_GROQ_KEY = '';   // gsk_...
-
 const DAEMON_URL = 'http://127.0.0.1:8787';
 const WS_URL     = 'ws://127.0.0.1:8787/ws/chat';
 
-/* ── File upload state & helpers ─────────────────────────────────────────── */
-const FILES = [];   // [{name, type, size, content, base64, isImage, url}]
-
-const ACCEPT_TEXT = new Set([
-  'text/plain','text/markdown','text/html','text/css','text/javascript',
-  'text/csv','text/xml','application/json','application/yaml',
-  'application/toml','application/xml','application/sql',
-]);
-const CODE_EXTS = new Set([
-  'py','js','ts','jsx','tsx','html','css','json','yaml','yml','toml',
-  'sh','bash','zsh','md','txt','csv','xml','sql','rs','go','java',
-  'c','cpp','h','hpp','rb','php','swift','kt','dart','r','m','env',
-  'gitignore','dockerfile','nix','conf','ini','cfg',
-]);
+/* ── File upload ─────────────────────────────────────────────────────────── */
+const FILES = [];
+const ACCEPT_TEXT = new Set(['text/plain','text/markdown','text/html','text/css','text/javascript','text/csv','text/xml','application/json','application/yaml','application/toml','application/xml','application/sql']);
+const CODE_EXTS   = new Set(['py','js','ts','jsx','tsx','html','css','json','yaml','yml','toml','sh','bash','zsh','md','txt','csv','xml','sql','rs','go','java','c','cpp','h','hpp','rb','php','swift','kt','dart','r','m','env','gitignore','dockerfile','nix','conf','ini','cfg']);
 
 function fileIcon(f){
   if(f.isImage) return '🖼';
   const ext=(f.name.split('.').pop()||'').toLowerCase();
-  if(['py'].includes(ext)) return '🐍';
-  if(['js','ts','jsx','tsx'].includes(ext)) return '⚡';
-  if(['html','css'].includes(ext)) return '🌐';
-  if(['json','yaml','yml','toml'].includes(ext)) return '⚙';
-  if(['sh','bash','zsh'].includes(ext)) return '💻';
-  if(['pdf'].includes(ext)) return '📄';
-  if(['csv'].includes(ext)) return '📊';
-  if(['md'].includes(ext)) return '📝';
-  if(['nix'].includes(ext)) return '❄';
-  if(['sql'].includes(ext)) return '🗄';
-  return '📎';
+  if(ext==='py') return '🐍'; if(['js','ts','jsx','tsx'].includes(ext)) return '⚡';
+  if(['html','css'].includes(ext)) return '🌐'; if(['json','yaml','yml','toml'].includes(ext)) return '⚙';
+  if(['sh','bash','zsh'].includes(ext)) return '💻'; if(ext==='pdf') return '📄';
+  if(ext==='csv') return '📊'; if(ext==='md') return '📝';
+  if(ext==='nix') return '❄'; if(ext==='sql') return '🗄'; return '📎';
 }
-
-function fmtSize(bytes){
-  if(bytes<1024) return bytes+'B';
-  if(bytes<1048576) return (bytes/1024).toFixed(1)+'KB';
-  return (bytes/1048576).toFixed(1)+'MB';
-}
-
-async function readAsBase64(file){
-  return new Promise((res,rej)=>{
-    const r=new FileReader();
-    r.onload=e=>res(e.target.result.split(',')[1]);
-    r.onerror=rej; r.readAsDataURL(file);
-  });
-}
-async function readAsText(file){
-  return new Promise((res,rej)=>{
-    const r=new FileReader();
-    r.onload=e=>res(e.target.result);
-    r.onerror=rej; r.readAsText(file);
-  });
-}
-async function readAsDataURL(file){
-  return new Promise((res,rej)=>{
-    const r=new FileReader();
-    r.onload=e=>res(e.target.result);
-    r.onerror=rej; r.readAsDataURL(file);
-  });
-}
+function fmtSize(b){ return b<1024?b+'B':b<1048576?(b/1024).toFixed(1)+'KB':(b/1048576).toFixed(1)+'MB'; }
+function readAsBase64(f){ return new Promise((r,j)=>{ const rd=new FileReader(); rd.onload=e=>r(e.target.result.split(',')[1]); rd.onerror=j; rd.readAsDataURL(f); }); }
+function readAsText(f){ return new Promise((r,j)=>{ const rd=new FileReader(); rd.onload=e=>r(e.target.result); rd.onerror=j; rd.readAsText(f); }); }
+function readAsDataURL(f){ return new Promise((r,j)=>{ const rd=new FileReader(); rd.onload=e=>r(e.target.result); rd.onerror=j; rd.readAsDataURL(f); }); }
 
 async function processFile(file){
   const ext=(file.name.split('.').pop()||'').toLowerCase();
-  const isImage = file.type.startsWith('image/');
-  const isText  = ACCEPT_TEXT.has(file.type) || CODE_EXTS.has(ext);
-  const isPDF   = file.type==='application/pdf' || ext==='pdf';
-
-  const entry = { name:file.name, type:file.type, size:file.size, isImage, ext };
-
-  if(isImage){
-    entry.base64 = await readAsBase64(file);
-    entry.url    = await readAsDataURL(file);   // for thumbnail
-  } else if(isPDF){
-    // Basic: extract raw text via FileReader (won't parse properly but gets some text)
-    try{ entry.content = await readAsText(file); }catch{ entry.content='[PDF — binary content]'; }
-    entry.isPDF = true;
-  } else if(isText){
-    entry.content = await readAsText(file);
-  } else {
-    // Try reading as text anyway
-    try{ entry.content = await readAsText(file); }catch{ entry.content=`[Binary file: ${file.name}]`; }
-  }
-
+  const isImage=file.type.startsWith('image/');
+  const isText=ACCEPT_TEXT.has(file.type)||CODE_EXTS.has(ext);
+  const entry={name:file.name,type:file.type,size:file.size,isImage,ext};
+  if(isImage){ entry.base64=await readAsBase64(file); entry.url=await readAsDataURL(file); }
+  else if(isText||file.type==='application/pdf'||ext==='pdf'){ try{entry.content=await readAsText(file);}catch{entry.content='[binary]';} }
+  else{ try{entry.content=await readAsText(file);}catch{entry.content=`[Binary: ${file.name}]`;} }
   return entry;
 }
 
 async function handleFiles(fileList){
-  const newFiles = Array.from(fileList).slice(0, 8 - FILES.length); // max 8 total
-  if(!newFiles.length) return;
-  toast(`Reading ${newFiles.length} file(s)…`);
-  for(const f of newFiles){
-    try{
-      const entry = await processFile(f);
-      FILES.push(entry);
-    }catch(e){ toast(`Failed: ${f.name}`, 'err'); }
-  }
-  renderFilePreviews();
-  toast(`${FILES.length} file(s) attached`, 'ok');
+  const nf=Array.from(fileList).slice(0,8-FILES.length);
+  if(!nf.length) return;
+  toast(`Reading ${nf.length} file(s)…`);
+  for(const f of nf){ try{ FILES.push(await processFile(f)); }catch{ toast(`Failed: ${f.name}`,'err'); } }
+  renderFilePreviews(); toast(`${FILES.length} file(s) attached`,'ok');
 }
-
-function removeFile(idx){
-  FILES.splice(idx,1);
-  renderFilePreviews();
-}
-
-function clearFiles(){
-  FILES.length=0;
-  renderFilePreviews();
-}
+function removeFile(i){ FILES.splice(i,1); renderFilePreviews(); }
+function clearFiles(){ FILES.length=0; renderFilePreviews(); }
 
 function renderFilePreviews(){
-  const hasFiles = FILES.length>0;
-  const hasImages = FILES.some(f=>f.isImage);
-
-  // Home strip
-  const homeStrip=$('home-file-strip');
-  // Results fbar strip
-  const fbarFiles=$('fbar-files');
-
-  [homeStrip, fbarFiles].forEach(el=>{
-    if(!el) return;
-    el.innerHTML='';
-    if(hasImages){
-      const badge=document.createElement('div');
-      badge.className='vision-badge';
-      badge.innerHTML='👁 Vision: Llama 4 Scout';
-      el.appendChild(badge);
-    }
-    FILES.forEach((f,i)=>{
-      const chip=document.createElement('div');
-      chip.className=`fchip-file${f.isImage?' image-chip':''}`;
-      if(f.isImage){
-        chip.innerHTML=`<img class="img-thumb" src="${f.url}" alt="${f.name}">
-          <span class="fname">${f.name}</span>
-          <span class="fsize">${fmtSize(f.size)}</span>
-          <span class="fclose" onclick="removeFile(${i})">×</span>`;
-      } else {
-        chip.innerHTML=`<span class="ficon">${fileIcon(f)}</span>
-          <span class="fname">${f.name}</span>
-          <span class="fsize">${fmtSize(f.size)}</span>
-          <span class="fclose" onclick="removeFile(${i})">×</span>`;
-      }
-      el.appendChild(chip);
-    });
-    el.classList.toggle('on', hasFiles);
+  const el=$('comp-files'); if(!el) return;
+  el.innerHTML='';
+  if(FILES.some(f=>f.isImage)){
+    const b=document.createElement('div'); b.className='vision-badge'; b.innerHTML='👁 Vision mode';
+    el.appendChild(b);
+  }
+  FILES.forEach((f,i)=>{
+    const c=document.createElement('div'); c.className='comp-file-chip';
+    if(f.isImage) c.innerHTML=`<img src="${f.url}" alt="${f.name}"><span>${f.name}</span><span class="cfc-rm" onclick="removeFile(${i})">×</span>`;
+    else c.innerHTML=`<span>${fileIcon(f)}</span><span>${f.name}</span><span style="color:var(--t3)">${fmtSize(f.size)}</span><span class="cfc-rm" onclick="removeFile(${i})">×</span>`;
+    el.appendChild(c);
   });
-
-  // Update attach button styles
-  [$('home-attach'),$('f-attach')].forEach(b=>{
-    if(!b) return;
-    b.classList.toggle('has-file', hasFiles);
-    b.textContent = hasFiles ? `📎 ${FILES.length}` : '📎';
-  });
+  sendBtn.disabled = !ta.value.trim() && !FILES.length;
 }
 
-/* Build messages array with files injected */
-function buildMessagesWithFiles(query, history=[]){
-  const hasImages = FILES.some(f=>f.isImage);
-  const images    = FILES.filter(f=>f.isImage);
-  const texts     = FILES.filter(f=>!f.isImage && f.content);
-
-  let textContext='';
-  if(texts.length){
-    textContext='\n\n'+texts.map(f=>{
-      const lines=f.content.split('\n').length;
-      const lang=f.ext||'';
-      return `**Attached file: \`${f.name}\`** (${lines} lines)\n\`\`\`${lang}\n${f.content.slice(0,12000)}${f.content.length>12000?'\n…(truncated)':''}\n\`\`\``;
-    }).join('\n\n');
-  }
-
-  const userText=(query||'Analyze the attached file(s) and help me with them.')+textContext;
-
-  // Build history messages
+function buildMessagesWithFiles(query,history=[]){
+  const hasImages=FILES.some(f=>f.isImage);
+  const images=FILES.filter(f=>f.isImage);
+  const texts=FILES.filter(f=>!f.isImage&&f.content);
+  let ctx='';
+  if(texts.length) ctx='\n\n'+texts.map(f=>`**File: \`${f.name}\`**\n\`\`\`${f.ext||''}\n${f.content.slice(0,12000)}${f.content.length>12000?'\n…(truncated)':''}\n\`\`\``).join('\n\n');
+  const userText=(query||'Analyze attached file(s).')+ctx;
   const msgs=[...history];
-
-  if(hasImages){
-    // Vision: multimodal content array
-    const content=[
-      ...images.map(f=>({type:'image_url',image_url:{url:`data:${f.type};base64,${f.base64}`}})),
-      {type:'text',text:userText},
-    ];
-    msgs.push({role:'user',content});
-  } else {
-    msgs.push({role:'user',content:userText});
-  }
-  return {msgs, hasImages};
+  if(hasImages) msgs.push({role:'user',content:[...images.map(f=>({type:'image_url',image_url:{url:`data:${f.type};base64,${f.base64}`}})),{type:'text',text:userText}]});
+  else msgs.push({role:'user',content:userText});
+  return {msgs,hasImages};
 }
 
-/* getBestGroqModel is now inside buildSystemPrompt block above */
+/* ── Folder upload ───────────────────────────────────────────────────────── */
+const TEXT_EXTS=new Set(['txt','md','mdx','rst','log','csv','tsv','py','js','ts','jsx','tsx','mjs','cjs','html','htm','css','scss','sass','less','json','yaml','yml','toml','ini','env','cfg','conf','sh','bash','zsh','fish','ps1','c','cpp','h','hpp','cc','cxx','java','kt','swift','dart','rb','php','lua','r','m','scala','go','rs','zig','nim','sql','graphql','proto','xml','svg','nix','tf','hcl']);
+const MAX_FOLDER_FILES=80, MAX_FILE_BYTES=120_000, MAX_TOTAL_CHARS=200_000;
+
+function isFolderTextFile(name){
+  const base=name.toLowerCase().split('/').pop();
+  if(['dockerfile','makefile','rakefile','gemfile','pipfile','justfile','.env','.gitignore','.gitattributes','.editorconfig'].includes(base)) return true;
+  return TEXT_EXTS.has(base.split('.').pop());
+}
+
+async function handleFolderUpload(fileList){
+  const all=Array.from(fileList);
+  if(!all.length){toast('Empty folder','err');return;}
+  const readable=all.filter(f=>isFolderTextFile(f.webkitRelativePath||f.name)&&f.size<=MAX_FILE_BYTES).sort((a,b)=>(a.webkitRelativePath||a.name).localeCompare(b.webkitRelativePath||b.name)).slice(0,MAX_FOLDER_FILES);
+  if(!readable.length){toast('No readable files found','err');return;}
+  const folderName=(readable[0].webkitRelativePath||readable[0].name).split('/')[0]||'folder';
+  toast(`📁 Reading ${readable.length} files…`);
+  let parts=[`# Folder: ${folderName}  (${readable.length} files)\n`],total=0,skip=0;
+  for(const f of readable){
+    const path=f.webkitRelativePath||f.name;
+    try{ const t=await f.text(); const s=t.slice(0,MAX_FILE_BYTES); if(total+s.length>MAX_TOTAL_CHARS){skip++;continue;} parts.push(`\n${'='.repeat(60)}\nFile: ${path}\n${'='.repeat(60)}\n${s}`); total+=s.length; }catch{skip++;}
+  }
+  const content=parts.join('\n');
+  const label=`📁 ${folderName} (${readable.length-skip} files · ${total>1000?(total/1000).toFixed(0)+'KB':total+'B'})`;
+  FILES.push({name:label,type:'folder',size:total,content,isImage:false,url:null});
+  renderFilePreviews();
+  toast(skip?`📁 ${readable.length-skip} files loaded (${skip} skipped)`:`📁 ${readable.length} files from ${folderName}`,'ok');
+}
+
+function readEntryRecursive(entry,results){
+  if(entry.isFile) return new Promise(r=>entry.file(f=>{ try{Object.defineProperty(f,'webkitRelativePath',{value:entry.fullPath.replace(/^\//,''),writable:false});}catch{} results.push(f);r(); },()=>r()));
+  if(entry.isDirectory){ const reader=entry.createReader(); return new Promise(r=>{ const batch=[]; function rb(){ reader.readEntries(es=>{ if(!es.length){Promise.all(batch).then(r);return;} es.forEach(e=>batch.push(readEntryRecursive(e,results)));rb(); },()=>r()); } rb(); }); }
+  return Promise.resolve();
+}
 
 /* ── App state ───────────────────────────────────────────────────────────── */
-const S = {
-  orKey:         localStorage.getItem('_jv_or')   || _DEFAULT_OR_KEY,
-  groqKey:       localStorage.getItem('_jv_groq') || _DEFAULT_GROQ_KEY,
-  activeModel:   JSON.parse(localStorage.getItem('_jv_model') || 'null'),
-  provider:      'connecting',   // 'daemon' | 'groq' | 'openrouter' | 'demo'
-  streaming:     false,
-  history:       [],
-  rawAnswer:     '',
-  ws:            null,
-  startTime:     0,
-  mode:          'home',
-  modelStatuses: {},
-  currentLang:   'en',    // 'en' | 'bn' | 'banglish'
+const S={
+  orKey:       localStorage.getItem('_jv_or')   || _DEFAULT_OR_KEY,
+  groqKey:     localStorage.getItem('_jv_groq') || _DEFAULT_GROQ_KEY,
+  activeModel: JSON.parse(localStorage.getItem('_jv_model')||'null'),
+  provider:    'connecting',
+  streaming:   false,
+  history:     [],
+  ws:          null,
+  startTime:   0,
+  modelStatuses:{},
+  currentLang: 'en',
+  turnIdx:     0,
+  curTurn:     0,
+  turnRaw:     {},
 };
-
-// Persist key
 localStorage.setItem('_jv_or', S.orKey);
 
-/* ── DOM ─────────────────────────────────────────────────────────────────── */
-const $  = id => document.getElementById(id);
-const home    = $('home'), results = $('results');
-const homeInp = $('home-inp'), navInp  = $('nav-inp');
-const answerEl = $('answer'), sind    = $('sind');
-const rQuery  = $('r-query'), bbadge  = $('bbadge');
-const ebanner = $('ebanner'), emsg    = $('emsg');
-const elapsed = $('elapsed'), amodel  = $('amodel');
-const fupsEl  = $('fups'),    fupsRow = $('fups-row');
-const histEl  = $('hist'),    histList= $('hist-list');
-const fInp    = $('f-inp'),   fSend   = $('f-send');
-const modelChip= $('model-chip'), modelName=$('model-name');
-const offlineEl= $('offline');
+/* ── DOM refs ────────────────────────────────────────────────────────────── */
+const $=id=>document.getElementById(id);
+const modelChip=$('model-chip'), modelName=$('model-name');
+const threadInner=$('thread-inner'), welcome=$('welcome');
+const ta=$('ta'), sendBtn=$('send-btn');
 
-/* ── Marked + Highlight.js ───────────────────────────────────────────────── */
-if (typeof marked !== 'undefined') marked.setOptions({ breaks:true, gfm:true });
-function md(text) {
-  if (!text) return '';
-  // Render <think>...</think> as a collapsible "Reasoning" block
-  text = text.replace(/<think>([\s\S]*?)<\/think>/g, (_, inner) => {
-    const escaped = inner.trim().replace(/`/g, '\\`');
-    return `\n\n> 💭 **Reasoning** *(click to expand)*\n${inner.trim().split('\n').map(l=>'> '+l).join('\n')}\n\n`;
-  });
-  // Strip incomplete <think> tag still streaming
-  text = text.replace(/<think>[\s\S]*$/, '\n\n*Reasoning…*\n');
-  return typeof marked !== 'undefined' ? marked.parse(text) : `<p>${esc(text)}</p>`;
+/* ── Helpers ─────────────────────────────────────────────────────────────── */
+if(typeof marked!=='undefined') marked.setOptions({breaks:true,gfm:true});
+function md(text){
+  if(!text) return '';
+  text=text.replace(/<think>([\s\S]*?)<\/think>/g,(_,inner)=>`\n\n> 💭 **Reasoning**\n${inner.trim().split('\n').map(l=>'> '+l).join('\n')}\n\n`);
+  text=text.replace(/<think>[\s\S]*$/,'\n\n*Reasoning…*\n');
+  return typeof marked!=='undefined'?marked.parse(text):`<p>${esc(text)}</p>`;
 }
-function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function addCopyBtns(el){
   el.querySelectorAll('pre').forEach(p=>{
     if(p.querySelector('.cpybtn')) return;
     const b=document.createElement('button'); b.className='cpybtn'; b.textContent='Copy';
-    b.onclick=()=>{ navigator.clipboard.writeText(p.querySelector('code')?.innerText||p.innerText)
-      .then(()=>{b.textContent='✓';setTimeout(()=>b.textContent='Copy',1500)}); };
+    b.onclick=()=>{ navigator.clipboard.writeText(p.querySelector('code')?.innerText||p.innerText).then(()=>{b.textContent='✓';setTimeout(()=>b.textContent='Copy',1500)}); };
     p.style.position='relative'; p.appendChild(b);
   });
-  if (typeof hljs!=='undefined') el.querySelectorAll('pre code').forEach(b=>hljs.highlightElement(b));
+  if(typeof hljs!=='undefined') el.querySelectorAll('pre code').forEach(b=>hljs.highlightElement(b));
 }
-
-/* ── Toast ───────────────────────────────────────────────────────────────── */
-function toast(msg, type=''){
+function toast(msg,type=''){
   const t=document.createElement('div'); t.className=`toast ${type}`; t.textContent=msg;
   $('toasts').appendChild(t); setTimeout(()=>t.remove(),2800);
 }
+function fetchJSON(url){ return fetch(url,{signal:AbortSignal.timeout(2000)}).then(r=>r.json()).catch(()=>null); }
 
 /* ── Model chip ──────────────────────────────────────────────────────────── */
-function setChip(name, status='online'){
-  modelName.textContent=name;
-  modelChip.className='model-chip '+(status==='online'?'':'connecting'==='connecting'?status:status);
-}
 function chipOnline(name){ modelName.textContent=name; modelChip.className='model-chip'; }
-function chipConnecting(name='Connecting…'){ modelName.textContent=name; modelChip.className='model-chip connecting'; }
-function chipOffline(name='Offline'){ modelName.textContent=name; modelChip.className='model-chip offline'; }
-
-/* ── Auto-connect — INSTANT, no pre-testing ──────────────────────────────
-   We never pre-test models. Just pick the best cached or default model
-   and connect immediately. Rotation happens only on real query failure.
-   ─────────────────────────────────────────────────────────────────────── */
-async function autoConnect(){
-  chipConnecting();
-
-  // 1. Try daemon (fast ping — 1.5s max)
-  if (await pingDaemon()){
-    S.provider='daemon';
-    const health = await fetchJSON(`${DAEMON_URL}/health`);
-    const active = health?.llm?.active || 'local';
-    chipOnline(`Daemon · ${active}`);
-    offlineEl.classList.remove('on');
-    return;
-  }
-
-  // 2. Groq — fastest (400+ t/s, ~376ms first word)
-  if (S.groqKey){
-    S.provider = 'groq';
-    offlineEl.classList.remove('on');          // Groq is connected — no warning
-    chipOnline(`${GROQ_MODELS[0].name} · Groq ⚡`);
-    return;
-  }
-
-  // 3. OpenRouter — NO model testing, instant start
-  if (!S.orKey){ chipOffline('No key'); S.provider='demo'; offlineEl.classList.add('on'); return; }
-  if (!S.activeModel){
-    S.activeModel = FREE_MODELS[0];
-    localStorage.setItem('_jv_model', JSON.stringify(FREE_MODELS[0]));
-  }
-  offlineEl.classList.remove('on');            // OR is connected — no warning
-  chipOnline(`${S.activeModel.name} · free`);
-  S.provider = 'openrouter';
-  raceFastest();
-}
-
-async function pingDaemon(){
-  try{
-    const r=await fetch(`${DAEMON_URL}/health`,{signal:AbortSignal.timeout(1500)});
-    return r.ok;
-  }catch{return false;}
-}
-
-/* Race top N models in parallel — silently upgrade to fastest winner */
-async function raceFastest(){
-  const TOP = FREE_MODELS.slice(0,4);
-  const race = TOP.map(m => pingModel(m).then(ms => ({m, ms})));
-  try{
-    // Pick whichever responds first without error
-    const results = await Promise.allSettled(race);
-    const ok = results
-      .filter(r=>r.status==='fulfilled' && r.value.ms < 9999)
-      .sort((a,b)=>a.value.ms-b.value.ms);
-    if(ok.length && ok[0].value.m.id !== S.activeModel?.id){
-      const winner = ok[0].value.m;
-      S.activeModel = winner;
-      localStorage.setItem('_jv_model', JSON.stringify(winner));
-      chipOnline(`${winner.name} · free`);
-      S.modelStatuses[winner.id]='ok';
-    }
-  }catch{}
-}
-
-async function pingModel(m){
-  const t0=Date.now();
-  try{
-    const r=await fetch(`${OR_BASE}/chat/completions`,{
-      method:'POST',
-      headers:{'Authorization':`Bearer ${S.orKey}`,'Content-Type':'application/json'},
-      body:JSON.stringify({model:m.id,messages:[{role:'user',content:'1'}],max_tokens:2}),
-      signal:AbortSignal.timeout(9000),
-    });
-    if(!r.ok){const d=await r.json();if(d?.error?.code===429)return 9999;}
-    const d=await r.json();
-    if(!d.choices?.[0]) return 9999;
-    S.modelStatuses[m.id]='ok';
-    return Date.now()-t0;
-  }catch{S.modelStatuses[m.id]='fail';return 9999;}
-}
-
-async function fetchJSON(url){
-  try{const r=await fetch(url,{signal:AbortSignal.timeout(2000)});return r.ok?r.json():null;}catch{return null;}
-}
-
-/* ── Model list render (in settings) ────────────────────────────────────── */
-function renderModelList(){
-  const el=$('sm-model-list'); if(!el) return;
-  el.innerHTML='';
-  FREE_MODELS.forEach(m=>{
-    const st=S.modelStatuses[m.id]||'untested';
-    const isActive=S.activeModel?.id===m.id;
-    const div=document.createElement('div');
-    div.className=`sml${isActive?' active':''}`;
-    div.onclick=()=>{ S.activeModel=m; localStorage.setItem('_jv_model',JSON.stringify(m));
-                      S.provider='openrouter'; chipOnline(`${m.name} · free`);
-                      renderModelList(); toast(`Switched to ${m.name}`); closeSettings(); };
-    div.innerHTML=`<div class="sml-dot ${st==='ok'?'ok':st==='fail'?'fail':st==='trying'?'trying':''}"></div>
-                   <span style="flex:1">${m.name}</span>
-                   <span style="font-size:9px;color:var(--t3)">${m.ctx}</span>
-                   ${isActive?'<span style="font-size:9px;color:var(--cyan)">●</span>':''}`;
-    el.appendChild(div);
-  });
-}
-
-/* ── Settings modal ──────────────────────────────────────────────────────── */
-function openSettings(){
-  $('or-key-input').value=S.orKey;
-  $('groq-key-input').value=S.groqKey;
-  renderModelList();
-  $('settings-modal').classList.add('on');
-}
-function closeSettings(){ $('settings-modal').classList.remove('on'); }
-
-async function testKey(){
-  const key=$('or-key-input').value.trim(); if(!key) return;
-  const st=$('sm-status'); st.className='sm-status on'; st.textContent='Testing…';
-  try{
-    const r=await fetch(`${OR_BASE}/models`,{
-      headers:{'Authorization':`Bearer ${key}`},
-      signal:AbortSignal.timeout(5000),
-    });
-    if(r.ok){
-      const d=await r.json();
-      const free=d.data?.filter(m=>String(m.pricing?.prompt)==='0').length||0;
-      st.className='sm-status on ok'; st.textContent=`✓ Valid key — ${free} free models available`;
-    } else {
-      st.className='sm-status on err'; st.textContent=`✗ Invalid key (HTTP ${r.status})`;
-    }
-  }catch(e){
-    st.className='sm-status on err'; st.textContent=`✗ Connection error: ${e.message}`;
-  }
-}
-
-async function saveKey(){
-  const orKey=$('or-key-input').value.trim();
-  const groqKey=$('groq-key-input').value.trim();
-  if(orKey){ S.orKey=orKey; localStorage.setItem('_jv_or',orKey); }
-  if(groqKey){ S.groqKey=groqKey; localStorage.setItem('_jv_groq',groqKey); }
-  S.activeModel=null; S.modelStatuses={};
-  localStorage.removeItem('_jv_model');
-  closeSettings();
-  toast('Keys saved — reconnecting…');
-  await autoConnect();
-}
-
-/* ── Navigation ──────────────────────────────────────────────────────────── */
-function goHome(){
-  home.classList.remove('gone'); results.classList.remove('on');
-  $('nav-search').classList.remove('on'); $('btn-new').style.display='none';
-  S.mode='home'; homeInp.value=''; homeInp.focus();
-}
-function goResults(q){
-  home.classList.add('gone'); results.classList.add('on');
-  $('nav-search').classList.add('on'); $('btn-new').style.display='';
-  S.mode='results'; navInp.value=q;
-}
-function newChat(){ S.history=[]; S.rawAnswer=''; goHome(); }
-
-/* ── Search dispatch ─────────────────────────────────────────────────────── */
-function doSearch(q){
-  q=q.trim(); if(!q) return;
-  goResults(q);
-  rQuery.textContent=q; answerEl.innerHTML='';
-  ebanner.classList.remove('on'); sind.classList.add('on');
-  fupsEl.style.display='none'; elapsed.textContent='';
-  S.rawAnswer=''; S.startTime=Date.now();
-  const qt=classifyQuery(q);
-  S.currentLang = detectLang(q);
-  const qtEmoji={science:'🔬',code:'💻',math:'🧮',creative:'✍',analysis:'📊',general:'💬'}[qt]||'💬';
-  amodel.textContent=`${qtEmoji} ${getQueryParams(qt).label} mode — thinking…`;
-  updateBadge('connecting');
-  if(S.history.length>0) renderHistory();
-  dispatch(q);
-}
-
-async function dispatch(q){
-  S.streaming=true; fSend.disabled=true;
-
-  if(S.provider==='daemon'){
-    streamDaemon(q);
-  } else if(S.provider==='groq' && S.groqKey){
-    streamGroq(q);
-  } else if(S.provider==='openrouter' && S.activeModel && S.orKey){
-    streamOpenRouter(q);
-  } else {
-    showDemo(q);
-  }
-}
-
-/* ── Daemon WebSocket stream ─────────────────────────────────────────────── */
-function streamDaemon(q){
-  if(S.ws){try{S.ws.close();}catch{}}
-  const ws=new WebSocket(WS_URL); S.ws=ws;
-  let raw='';
-  ws.onopen=()=>ws.send(JSON.stringify({query:q,history:getApiHistory()}));
-  ws.onmessage=(e)=>{
-    const d=JSON.parse(e.data);
-    if(d.type==='chunk'){ raw+=d.content; renderStreaming(raw); }
-    if(d.type==='done'){ finalize(d.content||raw,q,'daemon'); }
-    if(d.type==='error'){ showError(d.content); }
-  };
-  ws.onerror=()=>{ S.provider='openrouter'; streamOpenRouter(q); };
-  ws.onclose=(e)=>{ if(S.streaming&&!S.rawAnswer) streamOpenRouter(q); };
-}
-
-/* ── Groq stream — ultra-fast (400+ t/s) ────────────────────────────────── */
-async function streamGroq(q, modelIdx=0){
-  const {msgs, hasImages} = buildMessagesWithFiles(q, getApiHistory());
-  const qType   = classifyQuery(q);
-  const qParams = getQueryParams(qType);
-  const model   = modelIdx===0 ? getBestGroqModel(hasImages, qType) : (GROQ_MODELS[modelIdx]||GROQ_MODELS[0]);
-  const messages=[{role:'system', content: buildSystemPrompt(qType, S.currentLang)}, ...msgs];
-
-  // Show what mode we're running
-  amodel.textContent = `${model.name} · ${qParams.label}`;
-
-  try{
-    const resp = await fetch(`${GROQ_BASE}/chat/completions`,{
-      method:'POST',
-      headers:{
-        'Authorization':`Bearer ${S.groqKey}`,
-        'Content-Type':'application/json',
-      },
-      body:JSON.stringify({
-        model:      model.id,
-        messages,
-        stream:     true,
-        max_tokens: qParams.max_tokens,
-        temperature:qParams.temperature,
-      }),
-    });
-    if(!resp.ok){
-      const e=await resp.json().catch(()=>({}));
-      if((e?.error?.code===429||resp.status===429) && modelIdx+1<GROQ_MODELS.length){
-        toast(`${model.name} rate-limited, switching…`);
-        return streamGroq(q, modelIdx+1);
-      }
-      throw new Error(e?.error?.message||`HTTP ${resp.status}`);
-    }
-    updateBadge('groq', model.name);
-    const reader=resp.body.getReader(); const dec=new TextDecoder();
-    let raw='';
-    while(true){
-      const {done,value}=await reader.read(); if(done) break;
-      for(const line of dec.decode(value,{stream:true}).split('\n')){
-        if(!line.startsWith('data: ')) continue;
-        const data=line.slice(6).trim();
-        if(data==='[DONE]'||!data) continue;
-        try{ const delta=JSON.parse(data).choices?.[0]?.delta?.content||'';
-          if(delta){raw+=delta; renderStreaming(raw);} }catch{}
-      }
-    }
-    finalize(raw,q,'groq');
-  }catch(e){
-    // Groq failed → fall back to OpenRouter
-    toast('Groq unavailable, using OpenRouter…');
-    S.provider='openrouter';
-    if(!S.activeModel) S.activeModel=FREE_MODELS[0];
-    chipOnline(`${S.activeModel.name} · free`);
-    streamOpenRouter(q);
-  }
-}
-
-/* ── OpenRouter stream ───────────────────────────────────────────────────── */
-async function streamOpenRouter(q, retried=false){
-  if(!S.activeModel){ showDemo(q); return; }
-
-  const qType  = classifyQuery(q);
-  const system = buildSystemPrompt(qType, S.currentLang);
-  const {msgs} = buildMessagesWithFiles(q, getApiHistory());
-  const messages=[{role:'system',content:system}, ...msgs];
-
-  try{
-    const resp=await fetch(`${OR_BASE}/chat/completions`,{
-      method:'POST',
-      headers:{
-        'Authorization':`Bearer ${S.orKey}`,
-        'Content-Type':'application/json',
-        'HTTP-Referer':'http://localhost:8787',
-        'X-Title':'JARVIS',
-      },
-      body:JSON.stringify({
-        model:S.activeModel.id,
-        messages,
-        stream:true,
-        max_tokens:4096,
-        temperature:0.7,
-      }),
-    });
-
-    if(!resp.ok){
-      const err=await resp.json().catch(()=>({}));
-      const code=err?.error?.code||resp.status;
-      // Rate-limited → try next model
-      if(code===429||code===503){
-        if(!retried){
-          toast(`${S.activeModel.name} rate-limited, trying next…`);
-          await rotateToNextModel();
-          return streamOpenRouter(q, true);
-        }
-      }
-      throw new Error(err?.error?.message||`HTTP ${resp.status}`);
-    }
-
-    updateBadge('cloud', S.activeModel.name);
-    const reader=resp.body.getReader();
-    const dec=new TextDecoder();
-    let raw='';
-
-    while(true){
-      const {done,value}=await reader.read();
-      if(done) break;
-      const chunk=dec.decode(value,{stream:true});
-      for(const line of chunk.split('\n')){
-        if(!line.startsWith('data: ')) continue;
-        const data=line.slice(6).trim();
-        if(data==='[DONE]'||!data) continue;
-        try{
-          const delta=JSON.parse(data).choices?.[0]?.delta?.content||'';
-          if(delta){ raw+=delta; renderStreaming(raw); }
-        }catch{}
-      }
-    }
-    finalize(raw, q, 'openrouter');
-
-  }catch(e){
-    if(!retried && S.activeModel){
-      toast(`${S.activeModel.name} failed, rotating…`);
-      await rotateToNextModel();
-      return streamOpenRouter(q, true);
-    }
-    showError(e.message||'OpenRouter error');
-  }
-}
-
-async function rotateToNextModel(){
-  // Instant rotation — no API testing, try next index immediately
-  const cur = FREE_MODELS.findIndex(m=>m.id===S.activeModel?.id);
-  const next = FREE_MODELS[(cur+1) % FREE_MODELS.length];
-  S.activeModel = next;
-  localStorage.setItem('_jv_model', JSON.stringify(next));
-  chipOnline(`${next.name} · free`);
-  toast(`Switched → ${next.name}`);
-}
+function chipConnecting(n='Connecting…'){ modelName.textContent=n; modelChip.className='model-chip connecting'; }
+function chipOffline(n='Offline'){ modelName.textContent=n; modelChip.className='model-chip offline'; }
 
 /* ── Language detection ──────────────────────────────────────────────────── */
 function detectLang(text){
-  if(/[ঀ-৿]/.test(text)) return 'bn';          // Bengali script
-  // Banglish — Bengali words in Latin letters
-  if(/\b(ami|amar|amake|amader|tumi|tomar|tomake|apni|apnar|apnake|ki|ke|keno|kora|cai|chai|hobe|hoi|hoy|hoye|ache|achhe|thako|thakbe|thaky|jano|jani|bolo|boli|bolly|kono|kicu|kichhu|sobai|ekhon|onek|beshi|valo|bhalo|kintu|tahole|jodi|nahi|na|korbo|dibo|nibo|jabo|asbo|bolbo|dekho|shono|aro|ektu|boro|choto|niye|diye|kore|khub|thik|theek|kothay|kothai|kakhon|shudhu|karon|jonne|lagbe|lagy|paro|parbo|cile|holo|gelo|elo|aslo|rakho|korte|manush|kicu|kichu|koy|kaj|kaj|din|rat|shomoy|tobe|tahole|tai|jekhane|jei|sei|oi|ei|eta|ota|ita|sob|bia|hobi|kobi|jibon|bhai|bon|ma|baba|dada|didi|chele|meye|ghor|desh|shahor|gram|nodi|akash|mati|pani|khabo|khachy|khai|khabo|nao|deo|pio|bosho|utho|jao|aso|thako|dekh|shuney|bujhe|jene|niye|diye|kore|hoye|boshe|giye|eshe|cole)\b/i.test(text)) return 'banglish';
+  if(/[ঀ-৿]/.test(text)) return 'bn';
+  if(/\b(ami|amar|amake|amader|tumi|tomar|tomake|apni|apnar|ki|ke|keno|cai|chai|hobe|hoi|hoy|ache|achhe|thako|thakbe|jano|jani|bolo|boli|bolly|kono|kicu|kichhu|sobai|ekhon|onek|beshi|valo|bhalo|kintu|tahole|jodi|nahi|korbo|dibo|nibo|jabo|asbo|bolbo|dekho|shono|aro|ektu|boro|choto|niye|diye|kore|khub|thik|theek|kothay|kothai|kakhon|shudhu|karon|jonne|lagbe|lagy|paro|parbo|holo|gelo|elo|aslo|rakho|korte|tai|jei|sei|eta|ota|sob|hobi|kobi|bhai|bon|ghor|desh|shahor|khabo|khachy|khai|nao|deo|bosho|utho|jao|aso|thako|dekh|cole)\b/i.test(text)) return 'banglish';
   return 'en';
 }
-
-const LANG_INSTRUCTIONS = {
-  bn: `LANGUAGE RULE — ABSOLUTE: The user writes in Bengali (বাংলা). You MUST respond entirely in Bengali. Use proper Bengali grammar and vocabulary. Never switch to English or Banglish.`,
-  banglish: `LANGUAGE RULE — ABSOLUTE: The user writes in Banglish (Bengali using English letters, e.g. "ami cai", "koro", "hobe"). You MUST respond in the exact same Banglish style. Do NOT use Bengali script. Do NOT switch to English. Write Bengali words using Latin/English letters exactly as the user does. Natural, casual Banglish only.`,
-  en: `LANGUAGE RULE: Respond in English.`,
+const LANG_INSTRUCTIONS={
+  bn:`LANGUAGE RULE — ABSOLUTE: Respond entirely in Bengali (বাংলা). Never switch to English.`,
+  banglish:`LANGUAGE RULE — ABSOLUTE: Respond in Banglish (Bengali words in Latin letters, e.g. "ami", "koro"). Do NOT use Bengali script. Do NOT switch to English.`,
+  en:`LANGUAGE RULE: Respond in English.`,
 };
 
 /* ── Persistent memory ───────────────────────────────────────────────────── */
-const MEM_KEY      = '_jv_hist';
-const MEM_MAX_TURNS= 200;      // 100 exchanges stored locally (display + localStorage)
-const MEM_MAX_CHARS= 30000;    // trim long messages to avoid huge localStorage
-
-/* ── API context window (separate from stored memory) ────────────────────── */
-// Only last N messages sent to API — keeps follow-ups as fast as 1st message
-// Full history still stored locally for display and persistence
-const API_CTX_TURNS  = 12;    // last 6 exchanges sent to API (12 messages)
-const API_MSG_TRIM   = 6000;  // trim old messages to 6000 chars before sending
-
-function getApiHistory(){
-  // Take last API_CTX_TURNS messages, trim each to API_MSG_TRIM chars
-  return S.history.slice(-API_CTX_TURNS).map((m, i, arr) => {
-    // Always send the last user message intact (handled by buildMessagesWithFiles)
-    const isOld = i < arr.length - 2;
-    if(isOld && typeof m.content === 'string' && m.content.length > API_MSG_TRIM){
-      return { role: m.role, content: m.content.slice(0, API_MSG_TRIM) + '\n…[trimmed for speed]' };
-    }
-    return m;
-  }).filter(m => typeof m.content === 'string'); // drop image turns from history
-}
-
+const MEM_KEY='_jv_hist', MEM_MAX_TURNS=200, MEM_MAX_CHARS=30000;
 function saveMemory(){
-  const slim = S.history.slice(-MEM_MAX_TURNS).map(m=>({
-    role: m.role,
-    content: typeof m.content==='string'
-      ? m.content.slice(0, MEM_MAX_CHARS)
-      : '[file/image message]',   // don't re-store base64
-  }));
-  try{ localStorage.setItem(MEM_KEY, JSON.stringify(slim)); }catch{}
+  const slim=S.history.slice(-MEM_MAX_TURNS).map(m=>({role:m.role,content:typeof m.content==='string'?m.content.slice(0,MEM_MAX_CHARS):'[file]'}));
+  try{localStorage.setItem(MEM_KEY,JSON.stringify(slim));}catch{}
   updateMemBadge();
 }
-
-function loadMemory(){
-  try{
-    const d = JSON.parse(localStorage.getItem(MEM_KEY)||'[]');
-    return Array.isArray(d) ? d : [];
-  }catch{ return []; }
-}
-
-function clearMemory(){
-  localStorage.removeItem(MEM_KEY);
-  S.history=[];
-  updateMemBadge();
-  renderRecentChats();
-  toast('Memory cleared');
-}
-
+function loadMemory(){ try{const d=JSON.parse(localStorage.getItem(MEM_KEY)||'[]');return Array.isArray(d)?d:[];}catch{return[];} }
+function clearMemory(){ localStorage.removeItem(MEM_KEY); S.history=[]; S.turnRaw={}; updateMemBadge(); clearThread(); toast('Memory cleared'); }
 function updateMemBadge(){
-  const n = Math.floor(S.history.length/2);
-  const el=$('mem-badge');
+  const n=Math.floor(S.history.length/2), el=$('mem-badge');
   if(!el) return;
-  el.textContent = n>0 ? `🧠 ${n}` : '🧠';
-  el.title       = n>0 ? `${n} conversation exchanges in memory` : 'No memory yet';
-  el.classList.toggle('has-mem', n>0);
+  el.textContent=n>0?`🧠 ${n}`:'🧠';
+  el.title=n>0?`${n} exchanges in memory — click to clear`:'No memory';
+  el.classList.toggle('has-mem',n>0);
 }
 
-/* ── Query classifier — drives model + temperature selection ─────────────── */
+/* ── API context window ──────────────────────────────────────────────────── */
+const API_CTX_TURNS=12, API_MSG_TRIM=6000;
+function getApiHistory(){
+  return S.history.slice(-API_CTX_TURNS).map((m,i,arr)=>{
+    const isOld=i<arr.length-2;
+    if(isOld&&typeof m.content==='string'&&m.content.length>API_MSG_TRIM)
+      return{role:m.role,content:m.content.slice(0,API_MSG_TRIM)+'\n…[trimmed]'};
+    return m;
+  }).filter(m=>typeof m.content==='string');
+}
+
+/* ── Query classifier ────────────────────────────────────────────────────── */
 function classifyQuery(q){
   const s=q.toLowerCase();
   if(/\b(proof|theorem|derive|integral|equation|calculus|physics|chemistry|biology|quantum|relativity|genetics|molecular|neural|statistic|probabilit|hypothesis|experiment|formula|scientific)\b/.test(s)) return 'science';
   if(/\b(code|function|class|debug|error|bug|script|program|api|database|sql|implement|refactor|algorithm|complexity|runtime|syntax|compiler|library|framework|deploy|docker|kubernetes|git|bash|shell|regex|parse|async|recursion|leetcode)\b/.test(s)||/```/.test(q)) return 'code';
-  if(/\b(write story|write a poem|write an essay|creative|fiction|imagine|narrative|screenplay|lyrics|novel|blog post|persuasive|argumentative)\b/.test(s)) return 'creative';
+  if(/\b(write story|write a poem|write an essay|creative|fiction|imagine|narrative|screenplay|lyrics|novel|blog post)\b/.test(s)) return 'creative';
   if(/\b(plan|roadmap|steps|strategy|how do i|how should|what should|advice|recommend|best way|help me decide|pros and cons|compare)\b/.test(s)) return 'analysis';
   if(/\b(calculate|compute|solve|what is \d|how many|how much|convert|percentage|ratio|sum|product|average|median)\b/.test(s)) return 'math';
   return 'general';
 }
-
-/* Returns {temperature, max_tokens, label} for each query type */
-function getQueryParams(type){
-  return {
-    science:  {temperature:0.2, max_tokens:8192, label:'Science'},
-    code:     {temperature:0.15,max_tokens:8192, label:'Code'},
-    math:     {temperature:0.1, max_tokens:4096, label:'Math'},
-    creative: {temperature:0.9, max_tokens:8192, label:'Creative'},
-    analysis: {temperature:0.4, max_tokens:6144, label:'Analysis'},
-    general:  {temperature:0.6, max_tokens:6144, label:'General'},
-  }[type];
-}
-
-/* Pick best Groq model for task */
-function getBestGroqModel(hasImages, type){
+function getQueryParams(type){ return({science:{temperature:.2,max_tokens:8192,label:'Science'},code:{temperature:.15,max_tokens:8192,label:'Code'},math:{temperature:.1,max_tokens:4096,label:'Math'},creative:{temperature:.9,max_tokens:8192,label:'Creative'},analysis:{temperature:.4,max_tokens:6144,label:'Analysis'},general:{temperature:.6,max_tokens:6144,label:'General'}})[type]; }
+function getBestGroqModel(hasImages,type){
   if(hasImages) return GROQ_MODELS.find(m=>m.id.includes('llama-4-scout'))||GROQ_MODELS[0];
-  // Qwen3 32B has built-in chain-of-thought — best for science/math
-  if(type==='science'||type==='math'){
-    const qwen=GROQ_MODELS.find(m=>m.id.includes('qwen3'));
-    if(qwen) return qwen;
-  }
-  return GROQ_MODELS[0]; // llama-3.3-70b-versatile for everything else
+  if(type==='science'||type==='math'){ const q=GROQ_MODELS.find(m=>m.id.includes('qwen3')); if(q) return q; }
+  return GROQ_MODELS[0];
 }
 
-function buildSystemPrompt(queryType='general', lang='en'){
+function buildSystemPrompt(queryType='general',lang='en'){
   const now=new Date().toLocaleString('en-US',{weekday:'short',year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
   return `You are JARVIS — the personal AI of your user. Your single standard: deliver the BEST possible output, every time, for every topic.
 
@@ -1414,48 +721,21 @@ Think through complex problems carefully before responding.
 Never start with "Certainly!", "Great question!", or any filler — begin answering immediately.
 
 ━━━ CODE & ENGINEERING ━━━
-• Write complete, working, production-quality code — never pseudocode unless explicitly asked
-• Include error handling, edge cases, type hints/annotations where applicable
+• Write complete, working, production-quality code — never pseudocode unless asked
+• Include error handling, edge cases, type hints where applicable
 • Add concise inline comments for non-obvious logic
-• Explain the approach and why it was chosen
 • Point out performance implications, security issues, or better alternatives proactively
-• Languages: Python, JavaScript/TypeScript, Go, Rust, Java, C/C++, Bash, SQL, Nix, and any other
 
 ━━━ SCIENCE & MATHEMATICS ━━━
 • Show reasoning step by step — never skip steps
-• Use precise scientific terminology, then explain it in plain language
-• Ground abstract concepts in real-world examples and analogies
-• For calculations: show all work, verify the answer, state assumptions explicitly
+• Use precise scientific terminology, then explain in plain language
+• For calculations: show all work, verify the answer, state assumptions
 • Cover the theory AND the intuition behind it
-• Domains: Physics, Chemistry, Biology, Math, CS theory, Statistics, Engineering
 
 ━━━ RESEARCH & KNOWLEDGE ━━━
 • Be accurate — if uncertain, say so clearly then give your best answer
 • Synthesize information, don't just list facts
-• Highlight what matters most and why
 • Give concrete takeaways the user can act on
-• Cover multiple perspectives on contested topics
-
-━━━ WRITING & LANGUAGE ━━━
-• Match requested tone and style precisely (formal, casual, technical, creative)
-• Be original — avoid clichés and generic phrasing
-• Structure: strong opening, logical flow, memorable conclusion
-• Proofread mentally — deliver polished output, not drafts
-• Translation: preserve meaning, tone, and cultural nuance
-
-━━━ ANALYSIS & DECISIONS ━━━
-• Structure analyses with clear sections and headers
-• Weigh pros and cons explicitly with reasoning
-• Give a direct recommendation — never hide behind "it depends" without elaborating
-• Challenge assumptions if they seem wrong
-• Use tables or lists to compare options clearly
-
-━━━ LINUX / NIXOS / DEVOPS ━━━
-• Prefer declarative NixOS/flake approaches
-• Provide complete copy-pasteable commands — no placeholders without clear explanation
-• Explain what each flag/option does
-• Warn explicitly before suggesting destructive or irreversible operations
-• Cover: systemd, networking, storage, containers, CI/CD, monitoring
 
 ━━━ FORMAT RULES ━━━
 • Always use markdown: ## headers, **bold key terms**, \`inline code\`, \`\`\`language blocks\`\`\`
@@ -1463,7 +743,6 @@ Never start with "Certainly!", "Great question!", or any filler — begin answer
 • Complex topic → structured sections with headers
 • Code → always in fenced code blocks with language tag
 • Data comparisons → tables
-• Step-by-step processes → numbered lists
 • Scale depth to complexity — don't pad, don't truncate
 
 ━━━ PERSONALITY ━━━
@@ -1476,466 +755,424 @@ You are JARVIS. Perform at the highest level, always.
 ${LANG_INSTRUCTIONS[lang]||LANG_INSTRUCTIONS.en}`;
 }
 
-/* ── Render streaming text ───────────────────────────────────────────────── */
+/* ── Thread DOM management ───────────────────────────────────────────────── */
+function showWelcome(){ welcome.style.display=''; }
+function hideWelcome(){ welcome.style.display='none'; }
+
+function clearThread(){
+  threadInner.querySelectorAll('.turn').forEach(t=>t.remove());
+  showWelcome();
+  updateSidebar();
+}
+
+function addTurn(q){
+  hideWelcome();
+  const id=++S.turnIdx;
+  S.curTurn=id;
+
+  const turn=document.createElement('div');
+  turn.className='turn'; turn.id=`turn-${id}`;
+  turn.innerHTML=`
+    <div class="msg-user"><div class="mu-bubble">${esc(q)}</div></div>
+    <div class="msg-ai">
+      <div class="ai-av">🤖</div>
+      <div class="ai-body">
+        <div class="ai-name">JARVIS</div>
+        <div class="ai-content" id="aic-${id}">
+          <div class="thinking"><div class="thinking-dots"><div class="tdot"></div><div class="tdot"></div><div class="tdot"></div></div>&nbsp;Thinking…</div>
+        </div>
+        <div class="ai-footer" id="aif-${id}" style="display:none">
+          <span class="ai-src" id="ais-${id}"></span>
+          <span class="ai-time" id="ait-${id}"></span>
+          <button class="ai-btn" onclick="copyTurn(${id})">📋 Copy</button>
+          <button class="ai-btn" onclick="speakTurn(${id})">🔊 Speak</button>
+        </div>
+        <div class="ai-fups" id="aifups-${id}"></div>
+      </div>
+    </div>`;
+  threadInner.appendChild(turn);
+  turn.scrollIntoView({behavior:'smooth',block:'end'});
+  return id;
+}
+
+function appendCompletedTurn(q, raw, src){
+  // Used when rendering history from memory (non-streaming)
+  hideWelcome();
+  const id=++S.turnIdx;
+  S.turnRaw[id]=raw;
+  const srcLabel=src==='daemon'?'JARVIS Daemon':src||'AI';
+
+  const turn=document.createElement('div');
+  turn.className='turn'; turn.id=`turn-${id}`;
+  turn.innerHTML=`
+    <div class="msg-user"><div class="mu-bubble">${esc(q)}</div></div>
+    <div class="msg-ai">
+      <div class="ai-av">🤖</div>
+      <div class="ai-body">
+        <div class="ai-name">JARVIS</div>
+        <div class="ai-content" id="aic-${id}"></div>
+        <div class="ai-footer" id="aif-${id}">
+          <span class="ai-src">${esc(srcLabel)}</span>
+          <button class="ai-btn" onclick="copyTurn(${id})">📋 Copy</button>
+          <button class="ai-btn" onclick="speakTurn(${id})">🔊 Speak</button>
+        </div>
+        <div class="ai-fups" id="aifups-${id}"></div>
+      </div>
+    </div>`;
+  threadInner.appendChild(turn);
+  const contentEl=document.getElementById(`aic-${id}`);
+  if(contentEl){ contentEl.innerHTML=md(raw); addCopyBtns(contentEl); }
+  return id;
+}
+
 function renderStreaming(raw){
-  answerEl.innerHTML=md(raw)+'<span class="cursor"></span>';
-  addCopyBtns(answerEl);
-  answerEl.scrollIntoView({block:'end',behavior:'smooth'});
+  const el=document.getElementById(`aic-${S.curTurn}`);
+  if(!el) return;
+  el.innerHTML=md(raw)+'<span class="cursor"></span>';
+  addCopyBtns(el);
+  el.parentElement?.parentElement?.scrollIntoView({behavior:'smooth',block:'end'});
 }
 
-/* ── Finalize answer ─────────────────────────────────────────────────────── */
-function finalize(raw, q, src){
-  S.rawAnswer=raw; S.streaming=false; fSend.disabled=false;
-  answerEl.innerHTML=md(raw); addCopyBtns(answerEl);
-  const t=((Date.now()-S.startTime)/1000).toFixed(1);
-  elapsed.textContent=`${t}s`;
-  amodel.textContent=src==='daemon'?'JARVIS Daemon':S.activeModel?.name||'AI';
-  sind.classList.remove('on');
-  updateBadge(src, S.activeModel?.name);
-  // Store simplified history (text only — base64 images not re-sent)
-  const histContent = FILES.length
-    ? q + (FILES.some(f=>f.isImage) ? ` [+${FILES.filter(f=>f.isImage).length} image(s)]` : '')
-      + (FILES.filter(f=>!f.isImage).length ? ` [+${FILES.filter(f=>!f.isImage).length} file(s)]` : '')
-    : q;
+function finalizeTurn(raw, q, src){
+  S.streaming=false; sendBtn.disabled=!ta.value.trim()&&!FILES.length;
+  const id=S.curTurn;
+  S.turnRaw[id]=raw;
+
+  const contentEl=document.getElementById(`aic-${id}`);
+  const footerEl =document.getElementById(`aif-${id}`);
+  const srcEl    =document.getElementById(`ais-${id}`);
+  const timeEl   =document.getElementById(`ait-${id}`);
+
+  if(contentEl){ contentEl.innerHTML=md(raw); addCopyBtns(contentEl); }
+  if(srcEl) srcEl.textContent=src==='daemon'?'JARVIS Daemon':(src==='groq'?`${S.activeModel?.name||'Groq'} · Groq ⚡`:`${S.activeModel?.name||'OpenRouter'} · OR`);
+  if(timeEl) timeEl.textContent=`${((Date.now()-S.startTime)/1000).toFixed(1)}s`;
+  if(footerEl) footerEl.style.display='';
+
+  const histContent=FILES.length?q+` [+${FILES.length} file(s)]`:q;
   S.history.push({role:'user',content:histContent},{role:'assistant',content:raw});
-  saveMemory();    // persist to localStorage
-  renderRecentChats();  // update home page recent list
-  clearFiles();   // clear attachments after send
-  generateFups(q,raw); renderHistory(); loadMem();
+  saveMemory(); clearFiles(); generateFups(q,raw,id); updateSidebar();
+
+  document.getElementById(`turn-${id}`)?.scrollIntoView({behavior:'smooth',block:'end'});
 }
 
-/* ── Badge ───────────────────────────────────────────────────────────────── */
-function updateBadge(src, modelName=''){
-  const txt = src==='daemon'   ? '⚡ JARVIS Daemon'
-            : src==='groq'     ? `⚡ ${modelName} · Groq`
-            : src==='cloud'    ? `☁ ${modelName} · OpenRouter`
-            : src==='openrouter'?`☁ ${modelName} · OR free`
-            : src==='local'    ? '⚡ Ollama · local'
-            : src==='connecting'? '⟳ Connecting…'
-            :                    '◌ Demo mode';
-  bbadge.textContent=txt;
-  bbadge.className='bbadge'+(src==='local'||src==='groq'?' local':src==='connecting'?' warn':'');
+function showTurnError(msg){
+  S.streaming=false; sendBtn.disabled=!ta.value.trim()&&!FILES.length;
+  const el=document.getElementById(`aic-${S.curTurn}`);
+  if(el) el.innerHTML=`<div class="turn-error">⚠ ${esc(msg)}</div>`;
 }
 
-/* ── Error / Demo ────────────────────────────────────────────────────────── */
-function showError(msg){
-  ebanner.classList.add('on'); emsg.textContent=msg;
-  sind.classList.remove('on'); S.streaming=false; fSend.disabled=false;
-  amodel.textContent='Error';
-}
-function showDemo(q){
-  S.streaming=false; fSend.disabled=false; sind.classList.remove('on');
-  amodel.textContent='Demo mode'; updateBadge('demo');
-  const txt=`**JARVIS is in demo mode.**
-
-No API key is configured or all free models are currently unavailable.
-
-To connect:
-1. Click ⚙ in the top-right corner
-2. Enter your **free** OpenRouter key from [openrouter.ai/keys](https://openrouter.ai/keys)
-3. Click **Save & Connect** — JARVIS will auto-select the best free model
-
-> Your query: *${esc(q)}*`;
-  S.rawAnswer=txt;
-  answerEl.innerHTML=md(txt); addCopyBtns(answerEl);
-  elapsed.textContent='—';
-}
-
-/* ── Follow-ups ──────────────────────────────────────────────────────────── */
-const FUP={
-  cpu:['CPU per-core breakdown','Kill high-CPU process','Set CPU governor'],
-  mem:['Show swap details','Biggest RAM consumers','Clear page cache'],
-  disk:['Find largest files','Check inode usage','Clean Nix store'],
-  net:['List open ports','Show active connections','Test DNS'],
-  svc:['Show service logs','List failed services','Restart service'],
-  nix:['Update flake','List packages','Nix garbage collect'],
-  dflt:['Explain in more detail','Show me an example','Write a script for this'],
-};
-function generateFups(q,a){
-  const s=(q+a).toLowerCase();
-  const chips=s.includes('cpu')||s.includes('process')?FUP.cpu
-    :s.includes('mem')||s.includes('ram')?FUP.mem
-    :s.includes('disk')||s.includes('storage')?FUP.disk
-    :s.includes('net')||s.includes('port')||s.includes('ip ')?FUP.net
-    :s.includes('service')||s.includes('systemctl')?FUP.svc
-    :s.includes('nix')?FUP.nix:FUP.dflt;
-  fupsRow.innerHTML='';
-  chips.forEach(c=>{
-    const el=document.createElement('div'); el.className='fchip'; el.textContent=c;
-    el.onclick=()=>{ fInp.value=c; sendFup(); }; fupsRow.appendChild(el);
-  });
-  fupsEl.style.display='block';
-}
-
-/* ── Recent chats on home page ───────────────────────────────────────────── */
-function renderRecentChats(){
-  const rcardsEl   = $('rcards');
-  const rcardsListEl= $('rcards-list');
-  if(!rcardsEl || !rcardsListEl) return;
-
-  // Extract user→assistant pairs from history (newest first)
-  const pairs = [];
-  const hist  = S.history;
-  for(let i = hist.length - 2; i >= 0; i -= 2){
-    if(hist[i]?.role==='user' && hist[i+1]?.role==='assistant'){
-      pairs.push({ q: hist[i].content, a: hist[i+1].content });
-    }
-    if(pairs.length >= 8) break;
+function renderThread(){
+  threadInner.querySelectorAll('.turn').forEach(t=>t.remove());
+  for(let i=0;i<S.history.length-1;i+=2){
+    const u=S.history[i], a=S.history[i+1];
+    if(u?.role==='user'&&a?.role==='assistant') appendCompletedTurn(u.content,a.content,'');
   }
+  if(S.history.length>0){ hideWelcome(); setTimeout(()=>{ $('thread').scrollTop=$('thread').scrollHeight; },50); }
+  else showWelcome();
+}
 
-  if(!pairs.length){ rcardsEl.style.display='none'; return; }
-  rcardsEl.style.display='block';
-  rcardsListEl.innerHTML='';
-
+function updateSidebar(){
+  const list=$('sb-list'), lbl=$('sb-lbl'); if(!list) return;
+  const userMsgs=[];
+  for(let i=0;i<S.history.length;i+=2) if(S.history[i]?.role==='user') userMsgs.push({i,q:S.history[i].content});
+  const recent=userMsgs.slice(-12).reverse();
+  if(!recent.length){ list.innerHTML=''; if(lbl) lbl.style.display='none'; return; }
+  if(lbl) lbl.style.display='';
   const icons={science:'🔬',code:'💻',math:'🧮',creative:'✍️',analysis:'📊',general:'💬'};
-  pairs.forEach(({q,a})=>{
-    const type = classifyQuery(q);
-    const ico  = icons[type]||'💬';
-    const div  = document.createElement('div'); div.className='rc';
-    div.innerHTML=`<div class="rc-ico">${ico}</div>
-      <div class="rc-body">
-        <div class="rc-q">${esc(q.slice(0,80))}${q.length>80?'…':''}</div>
-        <div class="rc-preview">${esc(a.replace(/[#*`>\[\]]/g,'').trim().slice(0,90))}…</div>
-      </div>`;
-    div.onclick = ()=>{ homeInp.value=q; doSearch(q); };
-    rcardsListEl.appendChild(div);
+  list.innerHTML='';
+  recent.forEach(({i,q})=>{
+    const ico=icons[classifyQuery(q)]||'💬';
+    const d=document.createElement('div'); d.className='sb-item';
+    d.innerHTML=`<span class="sb-item-ico">${ico}</span><span class="sb-item-txt">${esc(q.slice(0,48))}${q.length>48?'…':''}</span>`;
+    const turnId=Math.floor(i/2)+1;
+    d.onclick=()=>{ const el=document.getElementById(`turn-${turnId}`); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); };
+    list.appendChild(d);
   });
 }
 
-/* ── Conversation history ────────────────────────────────────────────────── */
-function renderHistory(){
-  const turns=S.history.slice(0,-2);
-  if(!turns.length){histEl.style.display='none';return;}
-  histEl.style.display='block'; histList.innerHTML='';
-  turns.forEach(m=>{
-    const d=document.createElement('div'); d.className='hi';
-    d.innerHTML=`<div class="hi-role ${m.role}">${m.role}</div>
-                 <div class="hi-txt">${esc(m.content).slice(0,300)}${m.content.length>300?'…':''}</div>`;
-    histList.appendChild(d);
-  });
+function copyTurn(id){ navigator.clipboard.writeText(S.turnRaw[id]||'').then(()=>toast('Copied!','ok')); }
+function speakTurn(id){
+  const text=S.turnRaw[id]||''; if(!text) return;
+  fetch(`${DAEMON_URL}/api/voice/speak`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:text.slice(0,2000)}),signal:AbortSignal.timeout(2000)})
+    .then(()=>toast('Speaking via Piper…')).catch(()=>{ if('speechSynthesis' in window){ const u=new SpeechSynthesisUtterance(text.slice(0,2000)); window.speechSynthesis.speak(u); toast('Speaking…'); } });
 }
 
-/* ── Follow-up send ──────────────────────────────────────────────────────── */
-function sendFup(){
-  const q=fInp.value.trim(); if(!q||S.streaming) return;
-  fInp.value=''; window.scrollTo({top:0,behavior:'smooth'});
-  rQuery.textContent=q; navInp.value=q;
-  answerEl.innerHTML=''; ebanner.classList.remove('on');
-  sind.classList.add('on'); fupsEl.style.display='none';
-  elapsed.textContent=''; S.rawAnswer=''; S.startTime=Date.now(); amodel.textContent='Thinking…';
-  S.currentLang = detectLang(q);
-  updateBadge('connecting');
-  if(S.provider==='daemon')      streamDaemon(q);
-  else if(S.provider==='groq')   streamGroq(q);
-  else                           streamOpenRouter(q);
+const FUP={cpu:['CPU per-core breakdown','Kill high-CPU process'],mem:['Show swap details','Biggest RAM consumers'],disk:['Find largest files','Clean Nix store'],dflt:['Explain in more detail','Show me an example','Write a script for this']};
+function generateFups(q,a,turnId){
+  const s=(q+a).toLowerCase();
+  const chips=s.includes('cpu')||s.includes('process')?FUP.cpu:s.includes('mem')||s.includes('ram')?FUP.mem:s.includes('disk')?FUP.disk:FUP.dflt;
+  const el=document.getElementById(`aifups-${turnId}`); if(!el) return;
+  el.innerHTML='';
+  chips.forEach(c=>{ const d=document.createElement('div'); d.className='fchip'; d.textContent=c; d.onclick=()=>{ ta.value=c; sendMessage(c); }; el.appendChild(d); });
 }
 
-/* ── Copy / Speak / Share ────────────────────────────────────────────────── */
-function copyAns(){ navigator.clipboard.writeText(S.rawAnswer).then(()=>toast('Copied!','ok')); }
-async function speakAns(){
-  if(!S.rawAnswer) return;
-  try{
-    await fetch(`${DAEMON_URL}/api/voice/speak`,{method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({text:S.rawAnswer.slice(0,2000)}),signal:AbortSignal.timeout(2000)});
-    toast('Speaking via Piper…');
-  }catch{
-    if('speechSynthesis' in window){
-      const u=new SpeechSynthesisUtterance(S.rawAnswer.slice(0,2000));
-      window.speechSynthesis.speak(u); toast('Speaking…');
-    }
+/* ── Auto-connect ────────────────────────────────────────────────────────── */
+async function pingDaemon(){
+  try{ const r=await fetch(`${DAEMON_URL}/health`,{signal:AbortSignal.timeout(1500)}); return r.ok; }catch{ return false; }
+}
+async function autoConnect(){
+  chipConnecting();
+  if(await pingDaemon()){
+    S.provider='daemon';
+    const h=await fetchJSON(`${DAEMON_URL}/health`);
+    const active=h?.llm?.active||'local';
+    chipOnline(`Daemon · ${active}`); return;
+  }
+  if(S.groqKey){
+    S.provider='groq';
+    const cached=JSON.parse(localStorage.getItem('_jv_model')||'null');
+    S.activeModel=cached&&GROQ_MODELS.find(m=>m.id===cached.id)||GROQ_MODELS[0];
+    chipOnline(`${S.activeModel.name} · Groq ⚡`);
+    raceFastest(); return;
+  }
+  if(!S.orKey){ chipOffline('No key'); S.provider='demo'; return; }
+  if(!S.activeModel) S.activeModel=FREE_MODELS[0];
+  chipOnline(`${S.activeModel.name} · free`);
+  S.provider='openrouter';
+  raceFastest();
+}
+
+async function raceFastest(){
+  const top=S.provider==='groq'?GROQ_MODELS.slice(0,3):FREE_MODELS.slice(0,4);
+  const results=await Promise.allSettled(top.map(m=>testModel(m)));
+  const ok=results.filter(r=>r.status==='fulfilled'&&r.value.ok).sort((a,b)=>a.value.ms-b.value.ms);
+  if(ok.length&&ok[0].value.m.id!==S.activeModel?.id){
+    const winner=ok[0].value.m; S.activeModel=winner;
+    localStorage.setItem('_jv_model',JSON.stringify(winner));
+    chipOnline(`${winner.name} · ${S.provider==='groq'?'Groq ⚡':'free'}`);
+    S.modelStatuses[winner.id]='ok';
   }
 }
-function shareAns(){
-  const txt=`Q: ${rQuery.textContent}\n\nA: ${S.rawAnswer.slice(0,500)}`;
-  if(navigator.share) navigator.share({title:'JARVIS Answer',text:txt});
-  else navigator.clipboard.writeText(txt).then(()=>toast('Copied to clipboard!'));
+
+async function testModel(m){
+  const t0=Date.now();
+  const url=S.provider==='groq'?`${GROQ_BASE}/chat/completions`:`${OR_BASE}/chat/completions`;
+  const key=S.provider==='groq'?S.groqKey:S.orKey;
+  try{
+    const r=await fetch(url,{method:'POST',headers:{'Authorization':`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify({model:m.id,messages:[{role:'user',content:'hi'}],max_tokens:1,stream:false}),signal:AbortSignal.timeout(8000)});
+    const ok=r.ok||(r.status===400);
+    S.modelStatuses[m.id]=ok?'ok':'fail';
+    return{ok,ms:Date.now()-t0,m};
+  }catch{S.modelStatuses[m.id]='fail';return{ok:false,ms:9999,m};}
 }
 
-/* ── Voice input ─────────────────────────────────────────────────────────── */
-let SR=null, activeInp=null, activeMic=null;
-function setupMic(inp,btn){
-  btn.onclick=()=>{
-    if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window)){
-      toast('Speech API not available','err'); return;
+function rotateModel(){
+  const cur=FREE_MODELS.findIndex(m=>m.id===S.activeModel?.id);
+  const next=FREE_MODELS[(cur+1)%FREE_MODELS.length];
+  S.activeModel=next; localStorage.setItem('_jv_model',JSON.stringify(next));
+  chipOnline(`${next.name} · free`); toast(`Switched → ${next.name}`);
+}
+
+/* ── Dispatch ────────────────────────────────────────────────────────────── */
+function sendMessage(q){
+  q=(q||ta.value).trim(); if(!q&&!FILES.length) return;
+  if(S.streaming) return;
+  ta.value=''; ta.style.height='auto'; sendBtn.disabled=true;
+  S.currentLang=detectLang(q); S.startTime=Date.now(); S.streaming=true;
+  addTurn(q);
+  if(S.provider==='daemon')    streamDaemon(q);
+  else if(S.provider==='groq') streamGroq(q);
+  else if(S.provider==='openrouter'&&S.activeModel&&S.orKey) streamOpenRouter(q);
+  else showTurnError('No AI provider connected. Open ⚙ Settings and add an API key.');
+}
+
+/* ── Daemon WebSocket ────────────────────────────────────────────────────── */
+function streamDaemon(q){
+  if(S.ws){try{S.ws.close();}catch{}}
+  const ws=new WebSocket(WS_URL); S.ws=ws; let raw='';
+  ws.onopen=()=>ws.send(JSON.stringify({query:q,history:getApiHistory()}));
+  ws.onmessage=(e)=>{ const d=JSON.parse(e.data); if(d.type==='chunk'){raw+=d.content;renderStreaming(raw);} if(d.type==='done') finalizeTurn(d.content||raw,q,'daemon'); if(d.type==='error') showTurnError(d.content); };
+  ws.onerror=()=>{ S.provider='openrouter'; streamOpenRouter(q); };
+  ws.onclose=()=>{ if(S.streaming&&!S.turnRaw[S.curTurn]) streamOpenRouter(q); };
+}
+
+/* ── Groq stream ─────────────────────────────────────────────────────────── */
+async function streamGroq(q,modelIdx=0){
+  const{msgs,hasImages}=buildMessagesWithFiles(q,getApiHistory());
+  const qType=classifyQuery(q), qParams=getQueryParams(qType);
+  const model=modelIdx===0?getBestGroqModel(hasImages,qType):(GROQ_MODELS[modelIdx]||GROQ_MODELS[0]);
+  const messages=[{role:'system',content:buildSystemPrompt(qType,S.currentLang)},...msgs];
+  try{
+    const resp=await fetch(`${GROQ_BASE}/chat/completions`,{method:'POST',headers:{'Authorization':`Bearer ${S.groqKey}`,'Content-Type':'application/json'},body:JSON.stringify({model:model.id,messages,stream:true,max_tokens:qParams.max_tokens,temperature:qParams.temperature})});
+    if(!resp.ok){
+      const e=await resp.json().catch(()=>({}));
+      if((e?.error?.code===429||resp.status===429)&&modelIdx+1<GROQ_MODELS.length){toast(`${model.name} rate-limited…`);return streamGroq(q,modelIdx+1);}
+      throw new Error(e?.error?.message||`HTTP ${resp.status}`);
     }
+    chipOnline(`${model.name} · Groq ⚡`);
+    const reader=resp.body.getReader(); const dec=new TextDecoder(); let raw='';
+    while(true){
+      const{done,value}=await reader.read(); if(done) break;
+      for(const line of dec.decode(value,{stream:true}).split('\n')){
+        if(!line.startsWith('data: ')) continue;
+        const data=line.slice(6).trim(); if(data==='[DONE]'||!data) continue;
+        try{const delta=JSON.parse(data).choices?.[0]?.delta?.content||''; if(delta){raw+=delta;renderStreaming(raw);}}catch{}
+      }
+    }
+    finalizeTurn(raw,q,'groq');
+  }catch(e){
+    toast('Groq unavailable, using OpenRouter…');
+    S.provider='openrouter'; if(!S.activeModel) S.activeModel=FREE_MODELS[0];
+    chipOnline(`${S.activeModel.name} · free`); streamOpenRouter(q);
+  }
+}
+
+/* ── OpenRouter stream ───────────────────────────────────────────────────── */
+async function streamOpenRouter(q,retried=false){
+  if(!S.activeModel){showTurnError('No model available. Add an API key in ⚙ Settings.');return;}
+  const qType=classifyQuery(q), qParams=getQueryParams(qType);
+  const system=buildSystemPrompt(qType,S.currentLang);
+  const{msgs}=buildMessagesWithFiles(q,getApiHistory());
+  const messages=[{role:'system',content:system},...msgs];
+  try{
+    const resp=await fetch(`${OR_BASE}/chat/completions`,{method:'POST',headers:{'Authorization':`Bearer ${S.orKey}`,'Content-Type':'application/json','HTTP-Referer':'http://localhost:8787','X-Title':'JARVIS'},body:JSON.stringify({model:S.activeModel.id,messages,stream:true,max_tokens:qParams.max_tokens,temperature:qParams.temperature})});
+    if(!resp.ok){
+      const e=await resp.json().catch(()=>({}));
+      if((e?.error?.code===429||resp.status===429)&&!retried){toast(`${S.activeModel.name} rate-limited, rotating…`);rotateModel();return streamOpenRouter(q,true);}
+      if(!retried){rotateModel();return streamOpenRouter(q,true);}
+      throw new Error(e?.error?.message||`HTTP ${resp.status}`);
+    }
+    chipOnline(`${S.activeModel.name} · OR free`);
+    const reader=resp.body.getReader(); const dec=new TextDecoder(); let raw='';
+    while(true){
+      const{done,value}=await reader.read(); if(done) break;
+      for(const line of dec.decode(value,{stream:true}).split('\n')){
+        if(!line.startsWith('data: ')) continue;
+        const data=line.slice(6).trim(); if(data==='[DONE]'||!data) continue;
+        try{const delta=JSON.parse(data).choices?.[0]?.delta?.content||''; if(delta){raw+=delta;renderStreaming(raw);}}catch{}
+      }
+    }
+    finalizeTurn(raw,q,'openrouter');
+  }catch(e){
+    if(!retried){rotateModel();return streamOpenRouter(q,true);}
+    showTurnError(`All models failed: ${e.message}`);
+  }
+}
+
+/* ── Settings modal ──────────────────────────────────────────────────────── */
+function openSettings(){
+  $('groq-key-input').value=S.groqKey;
+  $('or-key-input').value=S.orKey;
+  renderModelList();
+  $('settings-modal').classList.add('on');
+}
+function closeSettings(){ $('settings-modal').classList.remove('on'); }
+async function testKey(){
+  const gk=$('groq-key-input').value.trim(), ok=$('or-key-input').value.trim();
+  const st=$('sm-status'); st.textContent='Testing…'; st.className='sm-status';
+  const key=gk||ok; const model=gk?GROQ_MODELS[0]:FREE_MODELS[0];
+  const url=gk?`${GROQ_BASE}/chat/completions`:`${OR_BASE}/chat/completions`;
+  try{
+    const r=await fetch(url,{method:'POST',headers:{'Authorization':`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify({model:model.id,messages:[{role:'user',content:'hi'}],max_tokens:1}),signal:AbortSignal.timeout(8000)});
+    if(r.ok||r.status===400){ st.textContent=`✓ Connected — ${model.name}`; st.className='sm-status ok'; }
+    else{ st.textContent=`✗ Error ${r.status}`; st.className='sm-status err'; }
+  }catch(e){ st.textContent=`✗ ${e.message}`; st.className='sm-status err'; }
+}
+function saveKey(){
+  const gk=$('groq-key-input').value.trim(), ok=$('or-key-input').value.trim();
+  if(gk){ S.groqKey=gk; localStorage.setItem('_jv_groq',gk); }
+  if(ok){ S.orKey=ok; localStorage.setItem('_jv_or',ok); }
+  S.activeModel=null; S.modelStatuses={}; closeSettings(); autoConnect();
+}
+function renderModelList(){
+  const list=$('sm-model-list'); if(!list) return;
+  list.innerHTML='';
+  const models=S.provider==='groq'?GROQ_MODELS:FREE_MODELS;
+  models.forEach(m=>{
+    const st=S.modelStatuses[m.id]||'untested', isActive=S.activeModel?.id===m.id;
+    const div=document.createElement('div'); div.className='sm-model-item'+(isActive?' active':'');
+    div.innerHTML=`<span class="sm-model-name">${m.name}</span><span class="sm-model-ctx">${m.ctx}</span>${st!=='untested'?`<span class="sm-model-status${st==='fail'?' fail':''}">${st==='ok'?'✓':'✗'}</span>`:''}`;
+    div.onclick=()=>{ S.activeModel=m; localStorage.setItem('_jv_model',JSON.stringify(m)); S.provider=S.groqKey?'groq':'openrouter'; chipOnline(`${m.name} · free`); renderModelList(); };
+    list.appendChild(div);
+  });
+}
+
+/* ── Sidebar toggle ──────────────────────────────────────────────────────── */
+function toggleSidebar(){
+  const sb=$('sidebar');
+  if(window.innerWidth<=700) sb.classList.toggle('open');
+  else sb.classList.toggle('collapsed');
+}
+
+/* ── Voice ───────────────────────────────────────────────────────────────── */
+let SR=null;
+function setupMic(btn,getInput){
+  btn.onclick=()=>{
+    if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window)){toast('Speech API not available','err');return;}
     if(SR){SR.stop();return;}
     const C=window.SpeechRecognition||window.webkitSpeechRecognition;
     SR=new C(); SR.lang='en-US'; SR.interimResults=true;
-    activeInp=inp; activeMic=btn;
-    btn.classList.add('rec'); btn.textContent='🔴';
-    SR.onresult=e=>{ inp.value=Array.from(e.results).map(r=>r[0].transcript).join(''); };
-    SR.onend=()=>{
-      btn.classList.remove('rec'); btn.textContent='🎤'; SR=null;
-      if(inp.value.trim()){ if(S.mode==='home') doSearch(inp.value); else sendFup(); }
-    };
-    SR.onerror=()=>{ btn.classList.remove('rec'); btn.textContent='🎤'; SR=null; };
+    btn.classList.add('active'); btn.textContent='🔴';
+    SR.onresult=e=>{ const inp=getInput(); if(inp) inp.value=Array.from(e.results).map(r=>r[0].transcript).join(''); sendBtn.disabled=false; };
+    SR.onend=()=>{ btn.classList.remove('active'); btn.textContent='🎤'; SR=null; const v=getInput()?.value?.trim(); if(v) sendMessage(v); };
+    SR.onerror=()=>{ btn.classList.remove('active'); btn.textContent='🎤'; SR=null; };
     SR.start();
   };
 }
-setupMic(homeInp,$('home-mic'));
-setupMic(fInp,$('f-mic'));
-$('nav-mic').onclick=()=>{ if(S.mode==='results') $('f-mic').click(); else $('home-mic').click(); };
+setupMic($('mic-btn'),()=>ta);
 
-/* ── File input wiring ───────────────────────────────────────────────────── */
-const fileInput = $('file-input');
-fileInput.addEventListener('change', ()=>{ handleFiles(fileInput.files); fileInput.value=''; });
+/* ── Textarea auto-resize ────────────────────────────────────────────────── */
+ta.addEventListener('input',()=>{
+  ta.style.height='auto';
+  ta.style.height=Math.min(ta.scrollHeight,200)+'px';
+  sendBtn.disabled=!ta.value.trim()&&!FILES.length;
+});
+ta.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendMessage(ta.value); }
+});
+sendBtn.onclick=()=>sendMessage(ta.value);
 
-function openFilePicker(){ fileInput.click(); }
-$('home-attach').addEventListener('click', openFilePicker);
-$('f-attach').addEventListener('click', openFilePicker);
+/* ── Quick send from welcome cards ──────────────────────────────────────── */
+function quickSend(el){ sendMessage(el.querySelector('.wcard-txt').textContent); }
 
-/* ── Folder upload ───────────────────────────────────────────────────────── */
-const folderInput = $('folder-input');
-
-// Extensions we read as text (everything else is skipped)
-const TEXT_EXTS = new Set([
-  'txt','md','mdx','rst','log','csv','tsv',
-  'py','js','ts','jsx','tsx','mjs','cjs',
-  'html','htm','css','scss','sass','less',
-  'json','yaml','yml','toml','ini','env','cfg','conf',
-  'sh','bash','zsh','fish','ps1',
-  'c','cpp','h','hpp','cc','cxx',
-  'java','kt','swift','dart','rb','php','lua','r','m','scala','groovy',
-  'go','rs','zig','nim','v','d',
-  'sql','graphql','proto',
-  'xml','svg','nix','tf','hcl',
-  'dockerfile','makefile','cmakelists','rakefile','gemfile','pipfile','justfile',
-]);
-
-const MAX_FOLDER_FILES  = 80;   // read at most 80 files per folder
-const MAX_FILE_BYTES    = 120_000; // skip individual files > 120 KB
-const MAX_TOTAL_CHARS   = 200_000; // hard cap on concatenated content
-
-function isFolderTextFile(filename){
-  const lower = filename.toLowerCase();
-  const base  = lower.split('/').pop();           // basename
-  // dot-files without extension that are usually text
-  if(['dockerfile','makefile','rakefile','gemfile','pipfile','justfile',
-      '.env','.gitignore','.gitattributes','.editorconfig'].includes(base)) return true;
-  const ext = base.split('.').pop();
-  return TEXT_EXTS.has(ext);
-}
-
-async function handleFolderUpload(fileList){
-  const all   = Array.from(fileList);
-  if(!all.length){ toast('Empty folder or nothing readable','err'); return; }
-
-  // Keep only text files, sort by path
-  const readable = all
-    .filter(f => isFolderTextFile(f.webkitRelativePath || f.name) && f.size <= MAX_FILE_BYTES)
-    .sort((a,b)=>(a.webkitRelativePath||a.name).localeCompare(b.webkitRelativePath||b.name))
-    .slice(0, MAX_FOLDER_FILES);
-
-  if(!readable.length){ toast('No readable text/code files found in folder','err'); return; }
-
-  // Derive folder name from first file's relative path
-  const firstPath = readable[0].webkitRelativePath || readable[0].name;
-  const folderName = firstPath.split('/')[0] || 'folder';
-
-  toast(`📁 Reading ${readable.length} file(s)…`);
-
-  let parts = [`# Folder: ${folderName}  (${readable.length} files)\n`];
-  let totalChars = 0;
-  let skipped = 0;
-
-  for(const f of readable){
-    const path = f.webkitRelativePath || f.name;
-    try{
-      const text = await f.text();
-      const snippet = text.slice(0, MAX_FILE_BYTES);
-      if(totalChars + snippet.length > MAX_TOTAL_CHARS){ skipped++; continue; }
-      parts.push(`\n${'='.repeat(60)}\nFile: ${path}\n${'='.repeat(60)}\n${snippet}`);
-      totalChars += snippet.length;
-    }catch{ skipped++; }
-  }
-
-  const content = parts.join('\n');
-  const sizeStr = totalChars > 1000 ? `${(totalChars/1000).toFixed(0)} KB` : `${totalChars} B`;
-  const label   = `📁 ${folderName} (${readable.length - skipped} files · ${sizeStr})`;
-
-  FILES.push({ name: label, type: 'folder', size: totalChars, content, isImage: false, url: null });
-  renderFileStrip();
-  if(skipped) toast(`📁 ${readable.length - skipped} files loaded (${skipped} skipped — too large)`,'ok');
-  else        toast(`📁 ${readable.length} files loaded from ${folderName}`,'ok');
-}
-
-folderInput.addEventListener('change', ()=>{ handleFolderUpload(folderInput.files); folderInput.value=''; });
-function openFolderPicker(){ folderInput.click(); }
-$('home-folder').addEventListener('click', openFolderPicker);
-$('f-folder').addEventListener('click', openFolderPicker);
+/* ── File inputs ─────────────────────────────────────────────────────────── */
+const fileInput=$('file-input'), folderInput=$('folder-input');
+fileInput.addEventListener('change',()=>{handleFiles(fileInput.files);fileInput.value='';});
+folderInput.addEventListener('change',()=>{handleFolderUpload(folderInput.files);folderInput.value='';});
+$('attach-btn').addEventListener('click',()=>fileInput.click());
+$('folder-btn').addEventListener('click',()=>folderInput.click());
 
 /* ── Drag & drop ─────────────────────────────────────────────────────────── */
-const dragOverlay = $('drag-overlay');
-let dragCounter = 0;
-document.addEventListener('dragenter', e=>{ e.preventDefault(); dragCounter++; dragOverlay.classList.add('on'); });
-document.addEventListener('dragleave', e=>{ dragCounter--; if(dragCounter<=0){ dragCounter=0; dragOverlay.classList.remove('on'); } });
-document.addEventListener('dragover',  e=>{ e.preventDefault(); });
-document.addEventListener('drop', e=>{
+const dragOverlay=$('drag-overlay'); let dragCounter=0;
+document.addEventListener('dragenter',e=>{e.preventDefault();dragCounter++;dragOverlay.classList.add('on');});
+document.addEventListener('dragleave',()=>{dragCounter--;if(dragCounter<=0){dragCounter=0;dragOverlay.classList.remove('on');}});
+document.addEventListener('dragover',e=>e.preventDefault());
+document.addEventListener('drop',e=>{
   e.preventDefault(); dragCounter=0; dragOverlay.classList.remove('on');
-  // Check if any dropped item is a directory
-  const items = [...(e.dataTransfer.items||[])];
-  const hasDir = items.some(i=>{ try{ return i.webkitGetAsEntry?.()?.isDirectory; }catch{ return false; } });
+  const items=[...(e.dataTransfer.items||[])];
+  const hasDir=items.some(i=>{try{return i.webkitGetAsEntry?.()?.isDirectory;}catch{return false;}});
   if(hasDir){
-    // Collect all files from dropped folder(s) via FileSystemEntry API
-    const allFiles = [];
-    const promises = items.map(item=>{
-      const entry = item.webkitGetAsEntry?.();
-      if(!entry) return Promise.resolve();
-      return readEntryRecursive(entry, allFiles);
-    });
-    Promise.all(promises).then(()=>{ if(allFiles.length) handleFolderUpload(allFiles); });
-  } else if(e.dataTransfer.files.length){
-    handleFiles(e.dataTransfer.files);
-  }
+    const all=[]; const ps=items.map(item=>{const entry=item.webkitGetAsEntry?.();return entry?readEntryRecursive(entry,all):Promise.resolve();});
+    Promise.all(ps).then(()=>{if(all.length) handleFolderUpload(all);});
+  } else if(e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
 });
 
-function readEntryRecursive(entry, results){
-  if(entry.isFile){
-    return new Promise(res=>entry.file(f=>{
-      // Attach webkitRelativePath manually from fullPath
-      Object.defineProperty(f,'webkitRelativePath',{value:entry.fullPath.replace(/^\//,''),writable:false});
-      results.push(f); res();
-    }, ()=>res()));
-  }
-  if(entry.isDirectory){
-    const reader = entry.createReader();
-    return new Promise(res=>{
-      const batch = [];
-      function readBatch(){
-        reader.readEntries(entries=>{
-          if(!entries.length){ Promise.all(batch).then(res); return; }
-          entries.forEach(e=>batch.push(readEntryRecursive(e, results)));
-          readBatch();
-        }, ()=>res());
-      }
-      readBatch();
-    });
-  }
-  return Promise.resolve();
-}
-
-/* ── Key bindings ────────────────────────────────────────────────────────── */
-homeInp.onkeydown = e=>{ if(e.key==='Enter') doSearch(homeInp.value); };
-navInp .onkeydown = e=>{ if(e.key==='Enter') doSearch(navInp.value);  };
-fInp   .onkeydown = e=>{ if(e.key==='Enter') sendFup(); };
-fSend  .onclick   = sendFup;
-$('home-btn').onclick = ()=>doSearch(homeInp.value);
-function qs(el){ homeInp.value=el.textContent; doSearch(el.textContent); }
-
-/* ── System metrics ──────────────────────────────────────────────────────── */
-async function loadSys(){
-  const ctx=await fetchJSON(`${DAEMON_URL}/api/system/context`);
-  if(!ctx) return;
-  const c=ctx.context||'';
-  const m1=c.match(/Host:\s*(.+?)\s*\|\s*Uptime:\s*([\d.]+)h/);
-  const m2=c.match(/CPU:\s*([\d.]+)%\s+Load:\s*([\d.]+)/);
-  const m3=c.match(/RAM:\s*([\d.]+)\/([\d.]+)G\s+\(([\d.]+)%\)/);
-  const m4=c.match(/Disk:\s*([\d.]+)\/([\d.]+)G\s+\(([\d.]+)%\)/);
-  if(m1){set('h-host',m1[1]);set('s-host',m1[1]);set('h-up',m1[2]+'h');set('s-up',m1[2]+'h');}
-  if(m2){const p=parseFloat(m2[1]);
-    set('h-cpu',m2[1]+'%');setBar('h-cpu-b',p);set('h-cpu-s','Load:'+m2[2]);
-    set('s-cpu',m2[1]+'%');setBar('s-cpu-b',p);set('s-load',m2[2]);}
-  if(m3){const p=parseFloat(m3[3]);
-    set('h-ram',m3[1]+'/'+m3[2]+'G');setBar('h-ram-b',p);set('h-ram-s',m3[3]+'% used');
-    set('s-ram',m3[1]+'/'+m3[2]+'G');setBar('s-ram-b',p);}
-  if(m4){const p=parseFloat(m4[3]);
-    set('h-disk',m4[1]+'/'+m4[2]+'G');setBar('h-disk-b',p);set('h-disk-s',m4[3]+'% used');
-    set('s-disk',m4[1]+'/'+m4[2]+'G');setBar('s-disk-b',p);}
-}
-async function loadSwap(){
-  const d=await agentCall('memory_info');
-  if(!d?.success) return;
-  const m=d.output.match(/Swap:\s*([\d.]+)G\s*\/\s*([\d.]+)G\s+\(([\d.]+)%/);
-  if(m){set('s-swap',`${m[1]}/${m[2]}G`);setBar('s-swap-b',parseFloat(m[3]));}
-}
-async function loadNet(){
-  const d=await agentCall('network_info');
-  if(!d?.success) return;
-  const el=$('net-list'); el.innerHTML='';
-  d.output.split('\n').filter(Boolean).forEach(l=>{
-    const up=l.includes('[UP]'); const name=l.split(' ')[0];
-    const ip=l.match(/\d+\.\d+\.\d+\.\d+/)?.[0]||'';
-    const r=document.createElement('div'); r.className='netrow';
-    r.innerHTML=`<span>${name}</span><span class="nst ${up?'up':'down'}">${up?'UP':'DOWN'}</span>
-                 <span style="font-size:10px;color:var(--t3)">${ip}</span>`;
-    el.appendChild(r);
-  });
-}
-async function loadProcs(){
-  const d=await agentCall('process_list',{n:6});
-  if(!d?.success) return;
-  const el=$('proc-list'); el.innerHTML='';
-  d.output.split('\n').slice(1,7).filter(Boolean).forEach(l=>{
-    const p=l.trim().split(/\s+/); if(p.length<4) return;
-    const [pid,cpu,mem,...nm]=p;
-    const r=document.createElement('div'); r.className='prow';
-    r.innerHTML=`<span class="pname">${nm.join(' ')}</span><span class="pcpu">${cpu}%</span><span class="pmem">${mem}%</span>`;
-    el.appendChild(r);
-  });
-}
-async function loadMem(){
-  const d=await fetchJSON(`${DAEMON_URL}/api/memory/recent?limit=5`);
-  const el=$('mem-list'); if(!el) return;
-  if(!d?.entries?.length){el.innerHTML='<div style="font-size:11px;color:var(--t3)">No memories yet</div>';return;}
-  el.innerHTML='';
-  d.entries.forEach(e=>{
-    const role=e.metadata?.role||'system';
-    const r=document.createElement('div'); r.className='me';
-    r.innerHTML=`<div class="me-role ${role}">${role}</div>
-                 <div class="me-txt">${esc(e.content).slice(0,110)}${e.content.length>110?'…':''}</div>`;
-    el.appendChild(r);
-  });
-}
-async function agentCall(op,kwargs={}){
-  return fetchJSON(`${DAEMON_URL}/api/agent`).then(()=>
-    fetch(`${DAEMON_URL}/api/agent`,{method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({op,kwargs}),
-      signal:AbortSignal.timeout(3000)}).then(r=>r.json()).catch(()=>null));
-}
-async function agentPost(op,kwargs={}){
-  try{
-    const r=await fetch(`${DAEMON_URL}/api/agent`,{method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({op,kwargs}),signal:AbortSignal.timeout(3000)});
-    return r.json();
-  }catch{return null;}
-}
-
-function set(id,v){const e=$(id);if(e)e.textContent=v;}
-function setBar(id,pct){
-  const e=$(id);if(!e)return;
-  e.style.width=Math.min(100,Math.max(0,pct))+'%';
-  e.className='sc-fill mfill'+(pct>90?' crit':pct>75?' warn':'');
-}
-
-/* ── URL param direct search ─────────────────────────────────────────────── */
-(()=>{const q=new URLSearchParams(location.search).get('q'); if(q) setTimeout(()=>doSearch(q),600);})();
-
-/* ── Paste image from clipboard (Ctrl+V) ────────────────────────────────── */
-document.addEventListener('paste', e=>{
+/* ── Clipboard paste ─────────────────────────────────────────────────────── */
+document.addEventListener('paste',e=>{
   const items=[...e.clipboardData.items].filter(i=>i.kind==='file');
-  if(!items.length) return;
-  e.preventDefault();
-  handleFiles(items.map(i=>i.getAsFile()));
-  toast('📋 Pasted from clipboard');
+  if(!items.length) return; e.preventDefault();
+  handleFiles(items.map(i=>i.getAsFile())); toast('📋 Pasted from clipboard');
 });
+
+/* ── URL param search ────────────────────────────────────────────────────── */
+(()=>{const q=new URLSearchParams(location.search).get('q');if(q) setTimeout(()=>sendMessage(q),800);})();
+
+/* ── New chat ────────────────────────────────────────────────────────────── */
+function newChat(){
+  if(S.streaming) return;
+  S.history=[]; S.turnRaw={}; S.turnIdx=0;
+  clearThread(); saveMemory();
+}
 
 /* ── Boot ────────────────────────────────────────────────────────────────── */
 (async()=>{
-  homeInp.focus();
-  // Restore conversation memory from previous sessions
-  S.history = loadMemory();
+  S.history=loadMemory();
   updateMemBadge();
-  renderRecentChats();
+  renderThread();
+  updateSidebar();
+  ta.focus();
   await autoConnect();
-  // Load system metrics (daemon may be offline — these silently no-op)
-  loadSys(); loadNet(); loadProcs(); loadSwap(); loadMem();
-  // Refresh every 20s
-  setInterval(()=>{ loadSys(); loadNet(); loadProcs(); loadSwap(); },20000);
-  // Re-check connection every 60s
-  setInterval(autoConnect, 60000);
+  setInterval(autoConnect,60000);
 })();
 </script>
 </body>
