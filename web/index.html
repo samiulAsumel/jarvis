@@ -450,13 +450,15 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
 <input type="file" id="file-input" multiple
   accept="image/*,.pdf,.txt,.md,.py,.js,.ts,.jsx,.tsx,.html,.css,.json,.yaml,.yml,.toml,.sh,.bash,.zsh,.csv,.xml,.sql,.rs,.go,.java,.c,.cpp,.h,.hpp,.rb,.php,.swift,.kt,.dart,.r,.m"
   style="display:none"/>
+<!-- hidden folder input -->
+<input type="file" id="folder-input" webkitdirectory multiple style="display:none"/>
 
 <!-- drag & drop overlay -->
 <div id="drag-overlay">
   <div class="drag-box">
     <div class="drag-icon">📂</div>
     <div class="drag-title">Drop anything here</div>
-    <div class="drag-sub">Images · Code · PDF · CSV · Any text file</div>
+    <div class="drag-sub">Images · Code · PDF · CSV · Folders · Any text file</div>
   </div>
 </div>
 
@@ -498,6 +500,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
     <input id="home-inp" type="text" placeholder="What do you need? JARVIS will handle it." autocomplete="off"/>
     <div class="sg">
       <button class="btn-attach" id="home-attach" title="Attach file / image">📎</button>
+      <button class="btn-attach" id="home-folder" title="Upload folder">📁</button>
       <button class="btn-search" id="home-btn">Ask</button>
       <button class="btn-mic" id="home-mic">🎤</button>
     </div>
@@ -593,6 +596,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
     <div class="fbar-files" id="fbar-files"></div>
     <div class="fbar-inner">
       <button class="btn-attach-sm" id="f-attach" title="Attach file">📎</button>
+      <button class="btn-attach-sm" id="f-folder" title="Upload folder">📁</button>
       <input id="f-inp" type="text" placeholder="Continue — JARVIS is listening…" autocomplete="off"/>
       <button class="btn-mic" id="f-mic" style="width:32px;height:32px;font-size:15px;border-radius:7px;flex-shrink:0">🎤</button>
       <button class="btn-send" id="f-send" title="Send">➤</button>
@@ -1625,6 +1629,86 @@ function openFilePicker(){ fileInput.click(); }
 $('home-attach').addEventListener('click', openFilePicker);
 $('f-attach').addEventListener('click', openFilePicker);
 
+/* ── Folder upload ───────────────────────────────────────────────────────── */
+const folderInput = $('folder-input');
+
+// Extensions we read as text (everything else is skipped)
+const TEXT_EXTS = new Set([
+  'txt','md','mdx','rst','log','csv','tsv',
+  'py','js','ts','jsx','tsx','mjs','cjs',
+  'html','htm','css','scss','sass','less',
+  'json','yaml','yml','toml','ini','env','cfg','conf',
+  'sh','bash','zsh','fish','ps1',
+  'c','cpp','h','hpp','cc','cxx',
+  'java','kt','swift','dart','rb','php','lua','r','m','scala','groovy',
+  'go','rs','zig','nim','v','d',
+  'sql','graphql','proto',
+  'xml','svg','nix','tf','hcl',
+  'dockerfile','makefile','cmakelists','rakefile','gemfile','pipfile','justfile',
+]);
+
+const MAX_FOLDER_FILES  = 80;   // read at most 80 files per folder
+const MAX_FILE_BYTES    = 120_000; // skip individual files > 120 KB
+const MAX_TOTAL_CHARS   = 200_000; // hard cap on concatenated content
+
+function isFolderTextFile(filename){
+  const lower = filename.toLowerCase();
+  const base  = lower.split('/').pop();           // basename
+  // dot-files without extension that are usually text
+  if(['dockerfile','makefile','rakefile','gemfile','pipfile','justfile',
+      '.env','.gitignore','.gitattributes','.editorconfig'].includes(base)) return true;
+  const ext = base.split('.').pop();
+  return TEXT_EXTS.has(ext);
+}
+
+async function handleFolderUpload(fileList){
+  const all   = Array.from(fileList);
+  if(!all.length){ toast('Empty folder or nothing readable','err'); return; }
+
+  // Keep only text files, sort by path
+  const readable = all
+    .filter(f => isFolderTextFile(f.webkitRelativePath || f.name) && f.size <= MAX_FILE_BYTES)
+    .sort((a,b)=>(a.webkitRelativePath||a.name).localeCompare(b.webkitRelativePath||b.name))
+    .slice(0, MAX_FOLDER_FILES);
+
+  if(!readable.length){ toast('No readable text/code files found in folder','err'); return; }
+
+  // Derive folder name from first file's relative path
+  const firstPath = readable[0].webkitRelativePath || readable[0].name;
+  const folderName = firstPath.split('/')[0] || 'folder';
+
+  toast(`📁 Reading ${readable.length} file(s)…`);
+
+  let parts = [`# Folder: ${folderName}  (${readable.length} files)\n`];
+  let totalChars = 0;
+  let skipped = 0;
+
+  for(const f of readable){
+    const path = f.webkitRelativePath || f.name;
+    try{
+      const text = await f.text();
+      const snippet = text.slice(0, MAX_FILE_BYTES);
+      if(totalChars + snippet.length > MAX_TOTAL_CHARS){ skipped++; continue; }
+      parts.push(`\n${'='.repeat(60)}\nFile: ${path}\n${'='.repeat(60)}\n${snippet}`);
+      totalChars += snippet.length;
+    }catch{ skipped++; }
+  }
+
+  const content = parts.join('\n');
+  const sizeStr = totalChars > 1000 ? `${(totalChars/1000).toFixed(0)} KB` : `${totalChars} B`;
+  const label   = `📁 ${folderName} (${readable.length - skipped} files · ${sizeStr})`;
+
+  FILES.push({ name: label, type: 'folder', size: totalChars, content, isImage: false, url: null });
+  renderFileStrip();
+  if(skipped) toast(`📁 ${readable.length - skipped} files loaded (${skipped} skipped — too large)`,'ok');
+  else        toast(`📁 ${readable.length} files loaded from ${folderName}`,'ok');
+}
+
+folderInput.addEventListener('change', ()=>{ handleFolderUpload(folderInput.files); folderInput.value=''; });
+function openFolderPicker(){ folderInput.click(); }
+$('home-folder').addEventListener('click', openFolderPicker);
+$('f-folder').addEventListener('click', openFolderPicker);
+
 /* ── Drag & drop ─────────────────────────────────────────────────────────── */
 const dragOverlay = $('drag-overlay');
 let dragCounter = 0;
@@ -1633,8 +1717,47 @@ document.addEventListener('dragleave', e=>{ dragCounter--; if(dragCounter<=0){ d
 document.addEventListener('dragover',  e=>{ e.preventDefault(); });
 document.addEventListener('drop', e=>{
   e.preventDefault(); dragCounter=0; dragOverlay.classList.remove('on');
-  if(e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+  // Check if any dropped item is a directory
+  const items = [...(e.dataTransfer.items||[])];
+  const hasDir = items.some(i=>{ try{ return i.webkitGetAsEntry?.()?.isDirectory; }catch{ return false; } });
+  if(hasDir){
+    // Collect all files from dropped folder(s) via FileSystemEntry API
+    const allFiles = [];
+    const promises = items.map(item=>{
+      const entry = item.webkitGetAsEntry?.();
+      if(!entry) return Promise.resolve();
+      return readEntryRecursive(entry, allFiles);
+    });
+    Promise.all(promises).then(()=>{ if(allFiles.length) handleFolderUpload(allFiles); });
+  } else if(e.dataTransfer.files.length){
+    handleFiles(e.dataTransfer.files);
+  }
 });
+
+function readEntryRecursive(entry, results){
+  if(entry.isFile){
+    return new Promise(res=>entry.file(f=>{
+      // Attach webkitRelativePath manually from fullPath
+      Object.defineProperty(f,'webkitRelativePath',{value:entry.fullPath.replace(/^\//,''),writable:false});
+      results.push(f); res();
+    }, ()=>res()));
+  }
+  if(entry.isDirectory){
+    const reader = entry.createReader();
+    return new Promise(res=>{
+      const batch = [];
+      function readBatch(){
+        reader.readEntries(entries=>{
+          if(!entries.length){ Promise.all(batch).then(res); return; }
+          entries.forEach(e=>batch.push(readEntryRecursive(e, results)));
+          readBatch();
+        }, ()=>res());
+      }
+      readBatch();
+    });
+  }
+  return Promise.resolve();
+}
 
 /* ── Key bindings ────────────────────────────────────────────────────────── */
 homeInp.onkeydown = e=>{ if(e.key==='Enter') doSearch(homeInp.value); };
