@@ -1309,8 +1309,8 @@ const LANG_INSTRUCTIONS = {
 
 /* ── Persistent memory ───────────────────────────────────────────────────── */
 const MEM_KEY      = '_jv_hist';
-const MEM_MAX_TURNS= 40;       // 20 exchanges remembered across sessions
-const MEM_MAX_CHARS= 3000;     // trim long messages to avoid huge localStorage
+const MEM_MAX_TURNS= 200;      // 100 exchanges remembered across sessions
+const MEM_MAX_CHARS= 30000;    // trim long messages to avoid huge localStorage
 
 function saveMemory(){
   const slim = S.history.slice(-MEM_MAX_TURNS).map(m=>({
@@ -1560,7 +1560,7 @@ function renderRecentChats(){
     if(hist[i]?.role==='user' && hist[i+1]?.role==='assistant'){
       pairs.push({ q: hist[i].content, a: hist[i+1].content });
     }
-    if(pairs.length >= 4) break;
+    if(pairs.length >= 8) break;
   }
 
   if(!pairs.length){ rcardsEl.style.display='none'; return; }
