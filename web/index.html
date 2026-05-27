@@ -529,22 +529,34 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
     <button class="sm-close" onclick="closeSettings()">✕</button>
     <div class="sm-title"><div class="icon">⚙</div>API Settings</div>
 
+    <!-- Groq (fastest) -->
     <div class="sm-field">
       <div class="sm-label">
-        OpenRouter API Key
-        <a href="https://openrouter.ai/keys" target="_blank">Get free key ↗</a>
+        ⚡ Groq Key <span style="color:var(--green);font-size:10px">10× faster</span>
+        <a href="https://console.groq.com/keys" target="_blank">Free key ↗</a>
+      </div>
+      <input class="sm-input" id="groq-key-input" type="password"
+             placeholder="gsk_…" autocomplete="off"/>
+    </div>
+
+    <!-- OpenRouter (more models) -->
+    <div class="sm-field">
+      <div class="sm-label">
+        OpenRouter Key <span style="color:var(--t3);font-size:10px">27 free models</span>
+        <a href="https://openrouter.ai/keys" target="_blank">Free key ↗</a>
       </div>
       <input class="sm-input" id="or-key-input" type="password"
              placeholder="sk-or-v1-…" autocomplete="off"/>
-      <div class="sm-row" style="margin-top:8px">
-        <button class="btn-sm btn-test" onclick="testKey()">🔌 Test</button>
-        <button class="btn-sm btn-save" onclick="saveKey()">💾 Save & Connect</button>
-      </div>
-      <div class="sm-status" id="sm-status"></div>
     </div>
 
+    <div class="sm-row">
+      <button class="btn-sm btn-test" onclick="testKey()">🔌 Test</button>
+      <button class="btn-sm btn-save" onclick="saveKey()">💾 Save & Connect</button>
+    </div>
+    <div class="sm-status" id="sm-status"></div>
+
     <div class="sm-divider"></div>
-    <div class="sm-models-lbl">Available free models (auto-detected)</div>
+    <div class="sm-models-lbl">Free models — ordered by speed (auto-rotate on failure)</div>
     <div class="sm-model-list" id="sm-model-list"></div>
   </div>
 </div>
@@ -556,40 +568,49 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
 /* ── Free API config ─────────────────────────────────────────────────────
    Priority order: best→fallback. Tested live at boot.
    ──────────────────────────────────────────────────────────────────────── */
-const OR_BASE = 'https://openrouter.ai/api/v1';
-
-// Ordered by quality / context window (best first)
-const FREE_MODELS = [
-  { id:'nvidia/nemotron-3-super-120b-a12b:free',     name:'Nemotron 120B',   ctx:'1M'  },
-  { id:'qwen/qwen3-coder:free',                      name:'Qwen3 Coder',     ctx:'1M'  },
-  { id:'openai/gpt-oss-120b:free',                   name:'GPT-OSS 120B',    ctx:'131k'},
-  { id:'deepseek/deepseek-v4-flash:free',            name:'DeepSeek V4',     ctx:'1M'  },
-  { id:'qwen/qwen3-next-80b-a3b-instruct:free',      name:'Qwen3 80B',       ctx:'262k'},
-  { id:'google/gemma-4-31b-it:free',                 name:'Gemma 4 31B',     ctx:'262k'},
-  { id:'nousresearch/hermes-3-llama-3.1-405b:free',  name:'Hermes 405B',     ctx:'131k'},
-  { id:'meta-llama/llama-3.3-70b-instruct:free',     name:'Llama 3.3 70B',   ctx:'131k'},
-  { id:'minimax/minimax-m2.5:free',                  name:'MiniMax M2.5',    ctx:'204k'},
-  { id:'nvidia/nemotron-3-nano-30b-a3b:free',        name:'Nemotron 30B',    ctx:'256k'},
+const OR_BASE   = 'https://openrouter.ai/api/v1';
+const GROQ_BASE = 'https://api.groq.com/openai/v1';
+// Groq free models — ultra-fast (400+ tokens/sec)
+const GROQ_MODELS = [
+  { id:'moonshotai/kimi-k2-instruct',  name:'Kimi K2',         ctx:'131k' },
+  { id:'llama-3.3-70b-versatile',      name:'Llama 3.3 70B',   ctx:'128k' },
+  { id:'deepseek-r1-distill-llama-70b',name:'R1-Llama 70B',    ctx:'128k' },
+  { id:'gemma2-9b-it',                 name:'Gemma2 9B',       ctx:'8k'   },
 ];
 
-// Default key baked in — stored in localStorage after first load
-const _DEFAULT_OR_KEY = 'OPENROUTER_KEY_REMOVED';
+// Ordered by SPEED (fastest confirmed first — live-tested)
+const FREE_MODELS = [
+  { id:'nvidia/nemotron-3-nano-30b-a3b:free',        name:'Nemotron Nano 30B', ctx:'256k' }, // ★ fastest
+  { id:'nvidia/nemotron-3-super-120b-a12b:free',     name:'Nemotron 120B',     ctx:'1M'   },
+  { id:'openrouter/free',                            name:'OR Auto-Free',      ctx:'200k' }, // OR picks fastest
+  { id:'google/gemma-4-31b-it:free',                name:'Gemma 4 31B',       ctx:'262k' },
+  { id:'deepseek/deepseek-v4-flash:free',            name:'DeepSeek V4 Flash', ctx:'1M'   },
+  { id:'meta-llama/llama-3.3-70b-instruct:free',     name:'Llama 3.3 70B',    ctx:'131k' },
+  { id:'qwen/qwen3-coder:free',                      name:'Qwen3 Coder',       ctx:'1M'   },
+  { id:'qwen/qwen3-next-80b-a3b-instruct:free',      name:'Qwen3 80B',         ctx:'262k' },
+  { id:'openai/gpt-oss-120b:free',                   name:'GPT-OSS 120B',      ctx:'131k' },
+  { id:'nousresearch/hermes-3-llama-3.1-405b:free',  name:'Hermes 405B',       ctx:'131k' },
+];
+
+const _DEFAULT_OR_KEY   = 'OPENROUTER_KEY_REMOVED';
+const _DEFAULT_GROQ_KEY = localStorage.getItem('_jv_groq') || '';
 
 const DAEMON_URL = 'http://127.0.0.1:8787';
 const WS_URL     = 'ws://127.0.0.1:8787/ws/chat';
 
 /* ── App state ───────────────────────────────────────────────────────────── */
 const S = {
-  orKey:         localStorage.getItem('_jv_or') || _DEFAULT_OR_KEY,
+  orKey:         localStorage.getItem('_jv_or')   || _DEFAULT_OR_KEY,
+  groqKey:       localStorage.getItem('_jv_groq') || '',
   activeModel:   JSON.parse(localStorage.getItem('_jv_model') || 'null'),
-  provider:      'connecting',   // 'daemon' | 'openrouter' | 'demo'
+  provider:      'connecting',   // 'daemon' | 'groq' | 'openrouter' | 'demo'
   streaming:     false,
   history:       [],
   rawAnswer:     '',
   ws:            null,
   startTime:     0,
   mode:          'home',
-  modelStatuses: {},             // id → 'ok'|'fail'|'trying'|'untested'
+  modelStatuses: {},
 };
 
 // Persist key
@@ -642,11 +663,14 @@ function chipOnline(name){ modelName.textContent=name; modelChip.className='mode
 function chipConnecting(name='Connecting…'){ modelName.textContent=name; modelChip.className='model-chip connecting'; }
 function chipOffline(name='Offline'){ modelName.textContent=name; modelChip.className='model-chip offline'; }
 
-/* ── Auto-connect ────────────────────────────────────────────────────────── */
+/* ── Auto-connect — INSTANT, no pre-testing ──────────────────────────────
+   We never pre-test models. Just pick the best cached or default model
+   and connect immediately. Rotation happens only on real query failure.
+   ─────────────────────────────────────────────────────────────────────── */
 async function autoConnect(){
   chipConnecting();
 
-  // 1. Try daemon WebSocket
+  // 1. Try daemon (fast ping — 1.5s max)
   if (await pingDaemon()){
     S.provider='daemon';
     const health = await fetchJSON(`${DAEMON_URL}/health`);
@@ -656,42 +680,25 @@ async function autoConnect(){
     return;
   }
 
-  // 2. Try OpenRouter free models in order
   offlineEl.classList.add('on');
+
+  // 2. Groq — fastest (400+ t/s), if user has a key
+  if (S.groqKey){
+    S.provider = 'groq';
+    chipOnline(`Llama 3.3 70B · Groq ⚡`);
+    return;
+  }
+
+  // 3. OpenRouter — NO model testing, instant start
   if (!S.orKey){ chipOffline('No API key'); S.provider='demo'; return; }
-
-  // If we have a cached working model, verify it first
-  if (S.activeModel){
-    chipConnecting(`Testing ${S.activeModel.name}…`);
-    if (await testModel(S.activeModel.id)){
-      chipOnline(`${S.activeModel.name} · free`);
-      S.provider='openrouter';
-      return;
-    }
+  if (!S.activeModel){
+    S.activeModel = FREE_MODELS[0];
+    localStorage.setItem('_jv_model', JSON.stringify(FREE_MODELS[0]));
   }
-
-  // Try all models in order
-  for (const m of FREE_MODELS){
-    chipConnecting(`Trying ${m.name}…`);
-    S.modelStatuses[m.id]='trying';
-    renderModelList();
-    if (await testModel(m.id)){
-      S.activeModel=m;
-      S.modelStatuses[m.id]='ok';
-      localStorage.setItem('_jv_model', JSON.stringify(m));
-      chipOnline(`${m.name} · free`);
-      S.provider='openrouter';
-      toast(`✓ Connected: ${m.name}`, 'ok');
-      renderModelList();
-      return;
-    }
-    S.modelStatuses[m.id]='fail';
-    renderModelList();
-  }
-
-  chipOffline('No model available');
-  S.provider='demo';
-  toast('All free models unavailable — demo mode', 'err');
+  chipOnline(`${S.activeModel.name} · free`);
+  S.provider = 'openrouter';
+  // Background: race top models silently, upgrade if faster found
+  raceFastest();
 }
 
 async function pingDaemon(){
@@ -701,18 +708,41 @@ async function pingDaemon(){
   }catch{return false;}
 }
 
-async function testModel(modelId){
+/* Race top N models in parallel — silently upgrade to fastest winner */
+async function raceFastest(){
+  const TOP = FREE_MODELS.slice(0,4);
+  const race = TOP.map(m => pingModel(m).then(ms => ({m, ms})));
+  try{
+    // Pick whichever responds first without error
+    const results = await Promise.allSettled(race);
+    const ok = results
+      .filter(r=>r.status==='fulfilled' && r.value.ms < 9999)
+      .sort((a,b)=>a.value.ms-b.value.ms);
+    if(ok.length && ok[0].value.m.id !== S.activeModel?.id){
+      const winner = ok[0].value.m;
+      S.activeModel = winner;
+      localStorage.setItem('_jv_model', JSON.stringify(winner));
+      chipOnline(`${winner.name} · free`);
+      S.modelStatuses[winner.id]='ok';
+    }
+  }catch{}
+}
+
+async function pingModel(m){
+  const t0=Date.now();
   try{
     const r=await fetch(`${OR_BASE}/chat/completions`,{
       method:'POST',
       headers:{'Authorization':`Bearer ${S.orKey}`,'Content-Type':'application/json'},
-      body:JSON.stringify({model:modelId,messages:[{role:'user',content:'hi'}],max_tokens:4}),
-      signal:AbortSignal.timeout(8000),
+      body:JSON.stringify({model:m.id,messages:[{role:'user',content:'1'}],max_tokens:2}),
+      signal:AbortSignal.timeout(9000),
     });
-    if(!r.ok) return false;
+    if(!r.ok){const d=await r.json();if(d?.error?.code===429)return 9999;}
     const d=await r.json();
-    return !!d.choices?.[0];
-  }catch{return false;}
+    if(!d.choices?.[0]) return 9999;
+    S.modelStatuses[m.id]='ok';
+    return Date.now()-t0;
+  }catch{S.modelStatuses[m.id]='fail';return 9999;}
 }
 
 async function fetchJSON(url){
@@ -742,6 +772,7 @@ function renderModelList(){
 /* ── Settings modal ──────────────────────────────────────────────────────── */
 function openSettings(){
   $('or-key-input').value=S.orKey;
+  $('groq-key-input').value=S.groqKey;
   renderModelList();
   $('settings-modal').classList.add('on');
 }
@@ -768,12 +799,14 @@ async function testKey(){
 }
 
 async function saveKey(){
-  const key=$('or-key-input').value.trim(); if(!key) return;
-  S.orKey=key; localStorage.setItem('_jv_or',key);
+  const orKey=$('or-key-input').value.trim();
+  const groqKey=$('groq-key-input').value.trim();
+  if(orKey){ S.orKey=orKey; localStorage.setItem('_jv_or',orKey); }
+  if(groqKey){ S.groqKey=groqKey; localStorage.setItem('_jv_groq',groqKey); }
   S.activeModel=null; S.modelStatuses={};
   localStorage.removeItem('_jv_model');
   closeSettings();
-  toast('Key saved — reconnecting…');
+  toast('Keys saved — reconnecting…');
   await autoConnect();
 }
 
@@ -808,6 +841,8 @@ async function dispatch(q){
 
   if(S.provider==='daemon'){
     streamDaemon(q);
+  } else if(S.provider==='groq' && S.groqKey){
+    streamGroq(q);
   } else if(S.provider==='openrouter' && S.activeModel && S.orKey){
     streamOpenRouter(q);
   } else {
@@ -829,6 +864,55 @@ function streamDaemon(q){
   };
   ws.onerror=()=>{ S.provider='openrouter'; streamOpenRouter(q); };
   ws.onclose=(e)=>{ if(S.streaming&&!S.rawAnswer) streamOpenRouter(q); };
+}
+
+/* ── Groq stream — ultra-fast (400+ t/s) ────────────────────────────────── */
+async function streamGroq(q, modelIdx=0){
+  const model = GROQ_MODELS[modelIdx] || GROQ_MODELS[0];
+  const messages=[
+    {role:'system', content: buildSystemPrompt()},
+    ...S.history,
+    {role:'user', content:q},
+  ];
+  try{
+    const resp = await fetch(`${GROQ_BASE}/chat/completions`,{
+      method:'POST',
+      headers:{
+        'Authorization':`Bearer ${S.groqKey}`,
+        'Content-Type':'application/json',
+      },
+      body:JSON.stringify({model:model.id, messages, stream:true, max_tokens:4096, temperature:0.6}),
+    });
+    if(!resp.ok){
+      const e=await resp.json().catch(()=>({}));
+      if((e?.error?.code===429||resp.status===429) && modelIdx+1<GROQ_MODELS.length){
+        toast(`${model.name} rate-limited, switching…`);
+        return streamGroq(q, modelIdx+1);
+      }
+      throw new Error(e?.error?.message||`HTTP ${resp.status}`);
+    }
+    updateBadge('groq', model.name);
+    const reader=resp.body.getReader(); const dec=new TextDecoder();
+    let raw='';
+    while(true){
+      const {done,value}=await reader.read(); if(done) break;
+      for(const line of dec.decode(value,{stream:true}).split('\n')){
+        if(!line.startsWith('data: ')) continue;
+        const data=line.slice(6).trim();
+        if(data==='[DONE]'||!data) continue;
+        try{ const delta=JSON.parse(data).choices?.[0]?.delta?.content||'';
+          if(delta){raw+=delta; renderStreaming(raw);} }catch{}
+      }
+    }
+    finalize(raw,q,'groq');
+  }catch(e){
+    // Groq failed → fall back to OpenRouter
+    toast('Groq unavailable, using OpenRouter…');
+    S.provider='openrouter';
+    if(!S.activeModel) S.activeModel=FREE_MODELS[0];
+    chipOnline(`${S.activeModel.name} · free`);
+    streamOpenRouter(q);
+  }
 }
 
 /* ── OpenRouter stream ───────────────────────────────────────────────────── */
@@ -906,35 +990,18 @@ async function streamOpenRouter(q, retried=false){
 }
 
 async function rotateToNextModel(){
-  if(!S.activeModel) return;
-  const cur=FREE_MODELS.findIndex(m=>m.id===S.activeModel.id);
-  for(let i=cur+1;i<FREE_MODELS.length;i++){
-    chipConnecting(`Trying ${FREE_MODELS[i].name}…`);
-    if(await testModel(FREE_MODELS[i].id)){
-      S.activeModel=FREE_MODELS[i];
-      S.modelStatuses[FREE_MODELS[i].id]='ok';
-      localStorage.setItem('_jv_model',JSON.stringify(S.activeModel));
-      chipOnline(`${S.activeModel.name} · free`);
-      return;
-    }
-    S.modelStatuses[FREE_MODELS[i].id]='fail';
-  }
-  S.activeModel=null; chipOffline('No model available');
+  // Instant rotation — no API testing, try next index immediately
+  const cur = FREE_MODELS.findIndex(m=>m.id===S.activeModel?.id);
+  const next = FREE_MODELS[(cur+1) % FREE_MODELS.length];
+  S.activeModel = next;
+  localStorage.setItem('_jv_model', JSON.stringify(next));
+  chipOnline(`${next.name} · free`);
+  toast(`Switched → ${next.name}`);
 }
 
 function buildSystemPrompt(){
-  return `You are JARVIS — Just A Rather Very Intelligent System.
-You are the personal AI for a NixOS workstation. You are precise, proactive, never pad responses.
-
-Capabilities:
-• System monitoring and diagnostics (CPU, memory, disk, processes, journals)
-• NixOS configuration management via git
-• Service lifecycle management
-• Deep technical assistance: Linux, DevOps, cloud, full-stack development
-• Research, analysis, writing, code generation
-
-Personality: Tony Stark's JARVIS — efficient, confident, occasionally dry.
-Always be precise, concise, and genuinely useful. Format code with proper markdown.`;
+  // Short = faster time-to-first-token
+  return `You are JARVIS, a precise personal AI for a NixOS workstation. Be concise, accurate, and use markdown for code. Never pad responses.`;
 }
 
 /* ── Render streaming text ───────────────────────────────────────────────── */
@@ -960,12 +1027,14 @@ function finalize(raw, q, src){
 /* ── Badge ───────────────────────────────────────────────────────────────── */
 function updateBadge(src, modelName=''){
   const txt = src==='daemon'   ? '⚡ JARVIS Daemon'
+            : src==='groq'     ? `⚡ ${modelName} · Groq`
             : src==='cloud'    ? `☁ ${modelName} · OpenRouter`
+            : src==='openrouter'?`☁ ${modelName} · OR free`
             : src==='local'    ? '⚡ Ollama · local'
             : src==='connecting'? '⟳ Connecting…'
             :                    '◌ Demo mode';
   bbadge.textContent=txt;
-  bbadge.className='bbadge'+(src==='local'?' local':src==='connecting'?' warn':'');
+  bbadge.className='bbadge'+(src==='local'||src==='groq'?' local':src==='connecting'?' warn':'');
 }
 
 /* ── Error / Demo ────────────────────────────────────────────────────────── */
@@ -1039,7 +1108,7 @@ function sendFup(){
   answerEl.innerHTML=''; ebanner.classList.remove('on');
   sind.classList.add('on'); fupsEl.style.display='none';
   elapsed.textContent=''; S.rawAnswer=''; S.startTime=Date.now(); amodel.textContent='Thinking…';
-  updateBadge('connecting'); streamOpenRouter(q);
+  updateBadge('connecting');
   if(S.provider==='daemon') streamDaemon(q); else streamOpenRouter(q);
 }
 
